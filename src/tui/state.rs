@@ -1,22 +1,39 @@
 use crate::detection::{DetectionResult, ProjectType};
-use crate::error::{Error, Result};
-use crate::platforms::{CircleCIAdapter, GitHubAdapter, GitLabAdapter, JenkinsAdapter, PlatformAdapter};
-use crate::tui::builder::PipelineBuilder;
-use crate::tui::stage::{language_from_project, PresetType, Stage};
+use crate::error::Result;
+use crate::platforms::jenkins::models::JenkinsConfig;
+use crate::presets::*;
+use crate::traits::{ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::HashSet;
-use std::fs;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Panel {
-    Left,
-    Right,
-}
+fn jenkins_to_string(config: &JenkinsConfig) -> String {
+    let mut result = String::new();
+    result.push_str(&format!("pipeline {{\n"));
+    result.push_str(&format!("    agent {{\n"));
+    result.push_str(&format!("        label '{}'\n", config.agent));
+    result.push_str(&format!("    }}\n\n"));
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Tab {
-    Presets,
-    Stages,
+    if !config.environment.is_empty() {
+        result.push_str("    environment {\n");
+        for (key, value) in &config.environment {
+            result.push_str(&format!("        {} = '{}'\n", key, value));
+        }
+        result.push_str("    }\n\n");
+    }
+
+    result.push_str("    stages {\n");
+    for stage in &config.stages {
+        result.push_str(&format!("        stage('{}') {{\n", stage.name));
+        result.push_str("            steps {\n");
+        for step in &stage.steps {
+            result.push_str(&format!("                {}\n", step));
+        }
+        result.push_str("            }\n");
+        result.push_str("        }\n");
+    }
+    result.push_str("    }\n");
+    result.push_str("}\n");
+    result
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,16 +63,6 @@ impl Platform {
         }
     }
 
-    pub fn from_str(s: &str) -> Result<Self> {
-        match s.to_lowercase().as_str() {
-            "github" => Ok(Platform::GitHub),
-            "gitlab" => Ok(Platform::GitLab),
-            "circleci" => Ok(Platform::CircleCI),
-            "jenkins" => Ok(Platform::Jenkins),
-            _ => Err(Error::InvalidInput(format!("Unknown platform: {}", s))),
-        }
-    }
-
     pub fn output_path(&self) -> PathBuf {
         match self {
             Platform::GitHub => PathBuf::from(".github/workflows/ci.yml"),
@@ -64,49 +71,94 @@ impl Platform {
             Platform::Jenkins => PathBuf::from("Jenkinsfile"),
         }
     }
+}
 
-    pub fn adapter(&self) -> Box<dyn PlatformAdapter> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum PresetChoice {
+    RustLibrary,
+    RustBinary,
+    PythonApp,
+    GoApp,
+}
+
+impl PresetChoice {
+    pub fn all() -> Vec<PresetChoice> {
+        vec![
+            PresetChoice::RustLibrary,
+            PresetChoice::RustBinary,
+            PresetChoice::PythonApp,
+            PresetChoice::GoApp,
+        ]
+    }
+
+    pub fn name(&self) -> &'static str {
         match self {
-            Platform::GitHub => Box::new(GitHubAdapter),
-            Platform::GitLab => Box::new(GitLabAdapter),
-            Platform::CircleCI => Box::new(CircleCIAdapter),
-            Platform::Jenkins => Box::new(JenkinsAdapter),
+            PresetChoice::RustLibrary => "Rust Library",
+            PresetChoice::RustBinary => "Rust Binary",
+            PresetChoice::PythonApp => "Python App",
+            PresetChoice::GoApp => "Go App",
+        }
+    }
+
+    pub fn from_project_type(project_type: &ProjectType) -> Self {
+        match project_type {
+            ProjectType::RustLibrary | ProjectType::RustWorkspace => PresetChoice::RustLibrary,
+            ProjectType::RustBinary => PresetChoice::RustBinary,
+            ProjectType::PythonApp | ProjectType::PythonLibrary => PresetChoice::PythonApp,
+            ProjectType::GoApp | ProjectType::GoLibrary => PresetChoice::GoApp,
+        }
+    }
+
+    pub fn options(&self) -> Vec<&'static str> {
+        match self {
+            PresetChoice::RustLibrary => vec!["Coverage", "Linter", "Formatter", "Security"],
+            PresetChoice::RustBinary => vec!["Linter", "Build Release"],
+            PresetChoice::PythonApp => vec!["Linter", "Type Check", "Formatter"],
+            PresetChoice::GoApp => vec!["Linter", "Security"],
         }
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum TreeItem {
+    Preset(PresetChoice),
+    Option(PresetChoice, usize),
+    Platform,
+}
+
 pub struct TuiState {
-    // Project context (from detection)
+    // Project context
     pub project_type: ProjectType,
     pub language_version: String,
     pub working_dir: PathBuf,
 
     // User selections
-    pub selected_preset: PresetType,
+    pub enabled_presets: HashSet<PresetChoice>,
     pub target_platform: Platform,
+    pub enable_coverage: bool,
+    pub enable_linter: bool,
+    pub enable_formatter: bool,
+    pub enable_security: bool,
+    pub enable_build_release: bool,
+    pub enable_type_check: bool,
 
-    // UI state
-    pub active_panel: Panel,
-    pub active_tab: Tab,
-    pub selected_stage_index: usize,
-    pub selected_preset_index: usize,
-    pub selected_platform_index: usize,
-    pub scroll_offset: usize,
+    // UI state - tree structure
+    pub expanded_presets: HashSet<PresetChoice>,
+    pub tree_items: Vec<TreeItem>,
+    pub tree_cursor: usize,
+    pub platform_menu_open: bool,
+    pub platform_menu_cursor: usize,
 
     // Generated output
-    pub pipeline_builder: PipelineBuilder,
     pub yaml_preview: String,
-    pub existing_yaml: Option<String>,
     pub generation_error: Option<String>,
-    pub dirty: bool,
 
-    // Exit flag
+    // Exit flags
     pub should_quit: bool,
     pub should_write: bool,
 }
 
 impl TuiState {
-    /// Initialize TUI state from detection result
     pub fn from_detection(
         detection: DetectionResult,
         platform: Option<String>,
@@ -118,269 +170,262 @@ impl TuiState {
             .clone()
             .unwrap_or_else(|| "stable".to_string());
 
-        let selected_preset = PresetType::from_project_type(&project_type);
+        let selected_preset = PresetChoice::from_project_type(&project_type);
 
         let target_platform = if let Some(p) = platform {
-            Platform::from_str(&p)?
+            match p.to_lowercase().as_str() {
+                "github" => Platform::GitHub,
+                "gitlab" => Platform::GitLab,
+                "circleci" => Platform::CircleCI,
+                "jenkins" => Platform::Jenkins,
+                _ => Platform::GitHub,
+            }
         } else {
             Platform::GitHub
         };
 
-        // Initialize pipeline builder from preset
-        let pipeline_builder =
-            PipelineBuilder::from_preset(selected_preset, &project_type, &language_version);
+        let mut expanded_presets = HashSet::new();
+        expanded_presets.insert(selected_preset);
 
-        // Try to load existing CI file
-        let existing_yaml = Self::load_existing_file(&working_dir, target_platform);
+        let mut enabled_presets = HashSet::new();
+        enabled_presets.insert(selected_preset);
 
         let mut state = Self {
             project_type,
             language_version,
             working_dir,
-            selected_preset,
+            enabled_presets,
             target_platform,
-            active_panel: Panel::Left,
-            active_tab: Tab::Stages,
-            selected_stage_index: 0,
-            selected_preset_index: Self::preset_index(selected_preset),
-            selected_platform_index: Self::platform_index(target_platform),
-            scroll_offset: 0,
-            pipeline_builder,
+            enable_coverage: true,
+            enable_linter: true,
+            enable_formatter: true,
+            enable_security: true,
+            enable_build_release: true,
+            enable_type_check: true,
+            expanded_presets,
+            tree_items: Vec::new(),
+            tree_cursor: 0,
+            platform_menu_open: false,
+            platform_menu_cursor: Platform::all().iter().position(|&p| p == target_platform).unwrap_or(0),
             yaml_preview: String::new(),
-            existing_yaml,
             generation_error: None,
-            dirty: true,
             should_quit: false,
             should_write: false,
         };
 
-        // Generate initial preview
+        state.rebuild_tree();
         state.regenerate_yaml();
-
         Ok(state)
     }
 
-    fn preset_index(preset: PresetType) -> usize {
-        PresetType::all().iter().position(|&p| p == preset).unwrap_or(0)
-    }
+    pub fn rebuild_tree(&mut self) {
+        self.tree_items.clear();
 
-    fn platform_index(platform: Platform) -> usize {
-        Platform::all().iter().position(|&p| p == platform).unwrap_or(0)
-    }
+        // Add presets (no platform selector in tree anymore)
+        for preset in PresetChoice::all() {
+            self.tree_items.push(TreeItem::Preset(preset));
 
-    fn load_existing_file(working_dir: &PathBuf, platform: Platform) -> Option<String> {
-        let path = working_dir.join(platform.output_path());
-        fs::read_to_string(path).ok()
-    }
-
-    /// Toggle a stage's enabled state
-    pub fn toggle_stage(&mut self, stage: Stage) {
-        self.pipeline_builder.toggle_stage(stage);
-        self.dirty = true;
-    }
-
-    /// Toggle currently selected stage
-    pub fn toggle_selected_stage(&mut self) {
-        let stages: Vec<_> = Stage::all();
-        if let Some(&stage) = stages.get(self.selected_stage_index) {
-            self.toggle_stage(stage);
-        }
-    }
-
-    /// Navigate up in the current list
-    pub fn navigate_up(&mut self) {
-        match self.active_tab {
-            Tab::Stages => {
-                if self.selected_stage_index > 0 {
-                    self.selected_stage_index -= 1;
-                }
-            }
-            Tab::Presets => {
-                if self.selected_preset_index > 0 {
-                    self.selected_preset_index -= 1;
+            // Add options if expanded
+            if self.expanded_presets.contains(&preset) {
+                for (i, _) in preset.options().iter().enumerate() {
+                    self.tree_items.push(TreeItem::Option(preset, i));
                 }
             }
         }
     }
 
-    /// Navigate down in the current list
-    pub fn navigate_down(&mut self) {
-        match self.active_tab {
-            Tab::Stages => {
-                let max = Stage::all().len() - 1;
-                if self.selected_stage_index < max {
-                    self.selected_stage_index += 1;
-                }
-            }
-            Tab::Presets => {
-                let max = PresetType::all().len() - 1;
-                if self.selected_preset_index < max {
-                    self.selected_preset_index += 1;
-                }
-            }
+    pub fn toggle_expand(&mut self, preset: PresetChoice) {
+        if self.expanded_presets.contains(&preset) {
+            self.expanded_presets.remove(&preset);
+        } else {
+            self.expanded_presets.insert(preset);
         }
+        self.rebuild_tree();
     }
 
-    /// Switch active panel
-    pub fn switch_panel(&mut self) {
-        self.active_panel = match self.active_panel {
-            Panel::Left => Panel::Right,
-            Panel::Right => Panel::Left,
-        };
+    pub fn current_item(&self) -> Option<&TreeItem> {
+        self.tree_items.get(self.tree_cursor)
     }
 
-    /// Switch to specific tab
-    pub fn switch_tab(&mut self, tab: Tab) {
-        self.active_tab = tab;
-    }
-
-    /// Change preset
-    pub fn change_preset(&mut self, preset: PresetType) {
-        self.selected_preset = preset;
-        self.selected_preset_index = Self::preset_index(preset);
-        self.pipeline_builder =
-            PipelineBuilder::from_preset(preset, &self.project_type, &self.language_version);
-        self.dirty = true;
-    }
-
-    /// Change selected preset by index
-    pub fn change_preset_by_index(&mut self) {
-        if let Some(&preset) = PresetType::all().get(self.selected_preset_index) {
-            self.change_preset(preset);
-        }
-    }
-
-    /// Change platform
-    pub fn change_platform(&mut self, platform: Platform) {
-        self.target_platform = platform;
-        self.selected_platform_index = Self::platform_index(platform);
-        self.existing_yaml = Self::load_existing_file(&self.working_dir, platform);
-        self.dirty = true;
-    }
-
-    /// Regenerate YAML preview
     pub fn regenerate_yaml(&mut self) {
-        if !self.dirty {
+        // If no presets are enabled, show a message
+        if self.enabled_presets.is_empty() {
+            self.yaml_preview = "# No presets enabled\n# Enable at least one preset to generate configuration".to_string();
+            self.generation_error = None;
             return;
         }
 
-        match self.pipeline_builder.build() {
-            Ok(pipeline) => {
-                let adapter = self.target_platform.adapter();
-                match adapter.generate(&pipeline) {
-                    Ok(yaml) => {
-                        self.yaml_preview = yaml;
-                        self.generation_error = None;
-                    }
-                    Err(e) => {
-                        self.generation_error = Some(format!("Generation error: {}", e));
-                    }
+        // For now, just use the first enabled preset
+        // TODO: In the future, we could merge multiple preset configurations
+        let first_preset = self.enabled_presets.iter().next().copied();
+
+        let result = match first_preset {
+            None => {
+                self.yaml_preview = "# No presets enabled".to_string();
+                self.generation_error = None;
+                return;
+            }
+            Some(selected_preset) => match selected_preset {
+            PresetChoice::RustLibrary => {
+                let preset = RustLibraryPreset::builder()
+                    .rust_version(&self.language_version)
+                    .coverage(self.enable_coverage)
+                    .linter(self.enable_linter)
+                    .format_check(self.enable_formatter)
+                    .security_scan(self.enable_security)
+                    .build();
+
+                match self.target_platform {
+                    Platform::GitHub => preset.to_github().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::GitLab => preset.to_gitlab().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::CircleCI => preset.to_circleci().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::Jenkins => preset.to_jenkins().map(|j| jenkins_to_string(&j)),
                 }
             }
+            PresetChoice::RustBinary => {
+                let preset = RustBinaryPreset::builder()
+                    .rust_version(&self.language_version)
+                    .linter(self.enable_linter)
+                    .build_release(self.enable_build_release)
+                    .build();
+
+                match self.target_platform {
+                    Platform::GitHub => preset.to_github().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::GitLab => preset.to_gitlab().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::CircleCI => preset.to_circleci().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::Jenkins => preset.to_jenkins().map(|j| jenkins_to_string(&j)),
+                }
+            }
+            PresetChoice::PythonApp => {
+                let preset = PythonAppPreset::builder()
+                    .python_version(&self.language_version)
+                    .linter(self.enable_linter)
+                    .type_check(self.enable_type_check)
+                    .build();
+
+                match self.target_platform {
+                    Platform::GitHub => preset.to_github().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::GitLab => preset.to_gitlab().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::CircleCI => preset.to_circleci().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::Jenkins => preset.to_jenkins().map(|j| jenkins_to_string(&j)),
+                }
+            }
+            PresetChoice::GoApp => {
+                let preset = GoAppPreset::builder()
+                    .go_version(&self.language_version)
+                    .linter(self.enable_linter)
+                    .security_scan(self.enable_security)
+                    .build();
+
+                match self.target_platform {
+                    Platform::GitHub => preset.to_github().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::GitLab => preset.to_gitlab().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::CircleCI => preset.to_circleci().and_then(|w| serde_yaml::to_string(&w).map_err(|e| e.into())),
+                    Platform::Jenkins => preset.to_jenkins().map(|j| jenkins_to_string(&j)),
+                }
+            }
+            }
+        };
+
+        match result {
+            Ok(yaml) => {
+                self.yaml_preview = yaml;
+                self.generation_error = None;
+            }
             Err(e) => {
-                self.generation_error = Some(format!("Build error: {}", e));
+                self.generation_error = Some(e.to_string());
             }
         }
-
-        self.dirty = false;
     }
 
-    /// Get enabled stages
-    pub fn enabled_stages(&self) -> HashSet<Stage> {
-        self.pipeline_builder
-            .enabled_stages()
-            .into_iter()
-            .collect()
+    pub fn get_option_value(&self, preset: PresetChoice, option_index: usize) -> bool {
+        match preset {
+            PresetChoice::RustLibrary => match option_index {
+                0 => self.enable_coverage,
+                1 => self.enable_linter,
+                2 => self.enable_formatter,
+                3 => self.enable_security,
+                _ => false,
+            },
+            PresetChoice::RustBinary => match option_index {
+                0 => self.enable_linter,
+                1 => self.enable_build_release,
+                _ => false,
+            },
+            PresetChoice::PythonApp => match option_index {
+                0 => self.enable_linter,
+                1 => self.enable_type_check,
+                2 => self.enable_formatter,
+                _ => false,
+            },
+            PresetChoice::GoApp => match option_index {
+                0 => self.enable_linter,
+                1 => self.enable_security,
+                _ => false,
+            },
+        }
     }
 
-    /// Check if a stage is enabled
-    pub fn is_stage_enabled(&self, stage: Stage) -> bool {
-        self.pipeline_builder.is_stage_enabled(stage)
+    pub fn toggle_option(&mut self, preset: PresetChoice, option_index: usize) {
+        match preset {
+            PresetChoice::RustLibrary => match option_index {
+                0 => self.enable_coverage = !self.enable_coverage,
+                1 => self.enable_linter = !self.enable_linter,
+                2 => self.enable_formatter = !self.enable_formatter,
+                3 => self.enable_security = !self.enable_security,
+                _ => {}
+            },
+            PresetChoice::RustBinary => match option_index {
+                0 => self.enable_linter = !self.enable_linter,
+                1 => self.enable_build_release = !self.enable_build_release,
+                _ => {}
+            },
+            PresetChoice::PythonApp => match option_index {
+                0 => self.enable_linter = !self.enable_linter,
+                1 => self.enable_type_check = !self.enable_type_check,
+                2 => self.enable_formatter = !self.enable_formatter,
+                _ => {}
+            },
+            PresetChoice::GoApp => match option_index {
+                0 => self.enable_linter = !self.enable_linter,
+                1 => self.enable_security = !self.enable_security,
+                _ => {}
+            },
+        }
+        self.regenerate_yaml();
     }
 
-    /// Request to quit
-    pub fn quit(&mut self) {
-        self.should_quit = true;
+    pub fn cycle_platform(&mut self) {
+        let platforms = Platform::all();
+        let current_index = platforms.iter().position(|&p| p == self.target_platform).unwrap_or(0);
+        let next_index = (current_index + 1) % platforms.len();
+        self.target_platform = platforms[next_index];
+        self.regenerate_yaml();
     }
 
-    /// Request to write and quit
-    pub fn write_and_quit(&mut self) {
-        self.should_write = true;
-        self.should_quit = true;
+    pub fn toggle_preset(&mut self, preset: PresetChoice) {
+        if self.enabled_presets.contains(&preset) {
+            self.enabled_presets.remove(&preset);
+        } else {
+            self.enabled_presets.insert(preset);
+        }
+        self.regenerate_yaml();
     }
 
-    /// Get the output file path
-    pub fn output_path(&self) -> PathBuf {
-        self.working_dir.join(self.target_platform.output_path())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::collections::HashMap;
-
-    #[test]
-    fn test_platform_from_str() {
-        assert_eq!(Platform::from_str("github").unwrap(), Platform::GitHub);
-        assert_eq!(Platform::from_str("gitlab").unwrap(), Platform::GitLab);
-        assert_eq!(Platform::from_str("circleci").unwrap(), Platform::CircleCI);
-        assert_eq!(Platform::from_str("jenkins").unwrap(), Platform::Jenkins);
-        assert!(Platform::from_str("unknown").is_err());
+    pub fn open_platform_menu(&mut self) {
+        self.platform_menu_open = true;
     }
 
-    #[test]
-    fn test_state_initialization() {
-        let detection = DetectionResult {
-            project_type: ProjectType::RustLibrary,
-            language_version: Some("stable".to_string()),
-            confidence: 1.0,
-            metadata: HashMap::new(),
-        };
-
-        let state =
-            TuiState::from_detection(detection, None, PathBuf::from(".")).unwrap();
-
-        assert_eq!(state.project_type, ProjectType::RustLibrary);
-        assert_eq!(state.selected_preset, PresetType::RustLibrary);
-        assert_eq!(state.target_platform, Platform::GitHub);
-        assert_eq!(state.active_tab, Tab::Stages);
+    pub fn close_platform_menu(&mut self) {
+        self.platform_menu_open = false;
     }
 
-    #[test]
-    fn test_toggle_stage() {
-        let detection = DetectionResult {
-            project_type: ProjectType::RustLibrary,
-            language_version: Some("stable".to_string()),
-            confidence: 1.0,
-            metadata: HashMap::new(),
-        };
-
-        let mut state =
-            TuiState::from_detection(detection, None, PathBuf::from(".")).unwrap();
-
-        let initially_enabled = state.is_stage_enabled(Stage::Test);
-        state.toggle_stage(Stage::Test);
-        assert_eq!(state.is_stage_enabled(Stage::Test), !initially_enabled);
-        assert!(state.dirty);
-    }
-
-    #[test]
-    fn test_navigate() {
-        let detection = DetectionResult {
-            project_type: ProjectType::RustLibrary,
-            language_version: Some("stable".to_string()),
-            confidence: 1.0,
-            metadata: HashMap::new(),
-        };
-
-        let mut state =
-            TuiState::from_detection(detection, None, PathBuf::from(".")).unwrap();
-
-        assert_eq!(state.selected_stage_index, 0);
-        state.navigate_down();
-        assert_eq!(state.selected_stage_index, 1);
-        state.navigate_up();
-        assert_eq!(state.selected_stage_index, 0);
+    pub fn select_platform_from_menu(&mut self) {
+        let platforms = Platform::all();
+        if let Some(&platform) = platforms.get(self.platform_menu_cursor) {
+            self.target_platform = platform;
+            self.regenerate_yaml();
+        }
+        self.platform_menu_open = false;
     }
 }

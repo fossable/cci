@@ -1,5 +1,3 @@
-mod adapter;
-mod models;
+pub mod models;
 
-pub use adapter::CircleCIAdapter;
 pub use models::*;

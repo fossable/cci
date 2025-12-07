@@ -1,14 +1,19 @@
 pub mod app;
-pub mod builder;
 pub mod events;
-pub mod stage;
 pub mod state;
 pub mod ui;
 
-use crate::detection::DetectionResult;
+use crate::detection::DetectorRegistry;
 use crate::error::Result;
+use std::path::PathBuf;
 
 /// Run the interactive TUI for configuring CI pipelines
-pub fn run_tui(detection: DetectionResult, platform: Option<String>) -> Result<()> {
-    app::TuiApp::new(detection, platform)?.run()
+pub fn run() -> Result<()> {
+    // Auto-detect project
+    let working_dir = PathBuf::from(".");
+    let registry = DetectorRegistry::new();
+    let detection = registry.detect(&working_dir)?;
+
+    // Launch TUI
+    app::TuiApp::new(detection, None)?.run()
 }
