@@ -2,53 +2,10 @@ use crate::detection::{DetectionResult, ProjectType};
 use crate::error::Result;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::presets::*;
+use crate::presets::python::{PythonFormatterTool, PythonLinterTool};
 use crate::traits::{ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::HashSet;
 use std::path::PathBuf;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PythonFormatterTool {
-    Black,
-    Ruff,
-}
-
-impl PythonFormatterTool {
-    pub fn name(&self) -> &'static str {
-        match self {
-            PythonFormatterTool::Black => "black",
-            PythonFormatterTool::Ruff => "ruff",
-        }
-    }
-
-    pub fn toggle(&self) -> Self {
-        match self {
-            PythonFormatterTool::Black => PythonFormatterTool::Ruff,
-            PythonFormatterTool::Ruff => PythonFormatterTool::Black,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PythonLinterTool {
-    Flake8,
-    Ruff,
-}
-
-impl PythonLinterTool {
-    pub fn name(&self) -> &'static str {
-        match self {
-            PythonLinterTool::Flake8 => "flake8",
-            PythonLinterTool::Ruff => "ruff",
-        }
-    }
-
-    pub fn toggle(&self) -> Self {
-        match self {
-            PythonLinterTool::Flake8 => PythonLinterTool::Ruff,
-            PythonLinterTool::Ruff => PythonLinterTool::Flake8,
-        }
-    }
-}
 
 fn jenkins_to_string(config: &JenkinsConfig) -> String {
     let mut result = String::new();
@@ -231,17 +188,29 @@ pub struct TuiState {
     pub working_dir: PathBuf,
 
     // User selections
-    pub enabled_presets: HashSet<PresetChoice>,
     pub target_platform: Platform,
-    pub enable_coverage: bool,
-    pub enable_linter: bool,
-    pub enable_formatter: bool,
-    pub enable_security: bool,
-    pub enable_build_release: bool,
-    pub enable_type_check: bool,
-    pub enable_build_wheel: bool,
+
+    // Rust Library options
+    pub rust_lib_enable_coverage: bool,
+    pub rust_lib_enable_linter: bool,
+    pub rust_lib_enable_formatter: bool,
+    pub rust_lib_enable_security: bool,
+
+    // Rust Binary options
+    pub rust_bin_enable_linter: bool,
+    pub rust_bin_enable_build_release: bool,
+
+    // Python options
+    pub python_enable_linter: bool,
+    pub python_enable_type_check: bool,
+    pub python_enable_formatter: bool,
+    pub python_enable_build_wheel: bool,
     pub python_formatter_tool: PythonFormatterTool,
     pub python_linter_tool: PythonLinterTool,
+
+    // Go options
+    pub go_enable_linter: bool,
+    pub go_enable_security: bool,
 
     // Docker preset options
     pub docker_use_dockerhub: bool,
@@ -303,24 +272,25 @@ impl TuiState {
         let mut expanded_presets = HashSet::new();
         expanded_presets.insert(selected_preset);
 
-        let mut enabled_presets = HashSet::new();
-        enabled_presets.insert(selected_preset);
-
         let mut state = Self {
             project_type,
             language_version,
             working_dir: working_dir.clone(),
-            enabled_presets,
             target_platform,
-            enable_coverage: true,
-            enable_linter: true,
-            enable_formatter: true,
-            enable_security: true,
-            enable_build_release: true,
-            enable_type_check: true,
-            enable_build_wheel: false,
+            rust_lib_enable_coverage: true,
+            rust_lib_enable_linter: true,
+            rust_lib_enable_formatter: true,
+            rust_lib_enable_security: true,
+            rust_bin_enable_linter: true,
+            rust_bin_enable_build_release: true,
+            python_enable_linter: true,
+            python_enable_type_check: true,
+            python_enable_formatter: true,
+            python_enable_build_wheel: false,
             python_formatter_tool: PythonFormatterTool::Black,
             python_linter_tool: PythonLinterTool::Flake8,
+            go_enable_linter: true,
+            go_enable_security: true,
             docker_use_dockerhub: false,
             docker_use_github_registry: false,
             docker_enable_cache: true,
@@ -350,11 +320,28 @@ impl TuiState {
         Ok(state)
     }
 
+    pub fn preset_matches_project(&self, preset: PresetChoice) -> bool {
+        match (&self.project_type, preset) {
+            (ProjectType::RustLibrary, PresetChoice::RustLibrary) => true,
+            (ProjectType::RustWorkspace, PresetChoice::RustLibrary) => true,
+            (ProjectType::RustBinary, PresetChoice::RustBinary) => true,
+            (ProjectType::PythonApp, PresetChoice::PythonApp) => true,
+            (ProjectType::PythonLibrary, PresetChoice::PythonApp) => true,
+            (ProjectType::GoApp, PresetChoice::GoApp) => true,
+            (ProjectType::GoLibrary, PresetChoice::GoApp) => true,
+            _ => false,
+        }
+    }
+
     pub fn rebuild_tree(&mut self) {
         self.tree_items.clear();
 
+        // Sort presets: matching ones first, then others
+        let mut presets = PresetChoice::all();
+        presets.sort_by_key(|preset| !self.preset_matches_project(*preset));
+
         // Add presets (no platform selector in tree anymore)
-        for preset in PresetChoice::all() {
+        for preset in presets {
             self.tree_items.push(TreeItem::Preset(preset));
 
             // Add options if expanded
@@ -383,20 +370,14 @@ impl TuiState {
         // Reset scroll position when regenerating
         self.preview_scroll = 0;
 
-        // If no presets are enabled, show a message
-        if self.enabled_presets.is_empty() {
-            self.yaml_preview = "# No presets enabled\n# Enable at least one preset to generate configuration".to_string();
-            self.generation_error = None;
-            return;
-        }
+        // Find the first preset that has any options enabled
+        let active_preset = PresetChoice::all()
+            .into_iter()
+            .find(|preset| self.has_any_options_enabled(*preset));
 
-        // For now, just use the first enabled preset
-        // TODO: In the future, we could merge multiple preset configurations
-        let first_preset = self.enabled_presets.iter().next().copied();
-
-        let result = match first_preset {
+        let result = match active_preset {
             None => {
-                self.yaml_preview = "# No presets enabled".to_string();
+                self.yaml_preview = "# No preset options enabled\n# Enable at least one option to generate configuration".to_string();
                 self.generation_error = None;
                 return;
             }
@@ -404,10 +385,10 @@ impl TuiState {
             PresetChoice::RustLibrary => {
                 let preset = RustLibraryPreset::builder()
                     .rust_version(&self.language_version)
-                    .coverage(self.enable_coverage)
-                    .linter(self.enable_linter)
-                    .format_check(self.enable_formatter)
-                    .security_scan(self.enable_security)
+                    .coverage(self.rust_lib_enable_coverage)
+                    .linter(self.rust_lib_enable_linter)
+                    .format_check(self.rust_lib_enable_formatter)
+                    .security_scan(self.rust_lib_enable_security)
                     .build();
 
                 match self.target_platform {
@@ -420,8 +401,8 @@ impl TuiState {
             PresetChoice::RustBinary => {
                 let preset = RustBinaryPreset::builder()
                     .rust_version(&self.language_version)
-                    .linter(self.enable_linter)
-                    .build_release(self.enable_build_release)
+                    .linter(self.rust_bin_enable_linter)
+                    .build_release(self.rust_bin_enable_build_release)
                     .build();
 
                 match self.target_platform {
@@ -434,8 +415,11 @@ impl TuiState {
             PresetChoice::PythonApp => {
                 let preset = PythonAppPreset::builder()
                     .python_version(&self.language_version)
-                    .linter(self.enable_linter)
-                    .type_check(self.enable_type_check)
+                    .linter(self.python_enable_linter)
+                    .linter_tool(self.python_linter_tool)
+                    .type_check(self.python_enable_type_check)
+                    .formatter_check(self.python_enable_formatter)
+                    .formatter_tool(self.python_formatter_tool)
                     .build();
 
                 match self.target_platform {
@@ -448,8 +432,8 @@ impl TuiState {
             PresetChoice::GoApp => {
                 let preset = GoAppPreset::builder()
                     .go_version(&self.language_version)
-                    .linter(self.enable_linter)
-                    .security_scan(self.enable_security)
+                    .linter(self.go_enable_linter)
+                    .security_scan(self.go_enable_security)
                     .build();
 
                 match self.target_platform {
@@ -501,29 +485,29 @@ impl TuiState {
     pub fn get_option_value(&self, preset: PresetChoice, option_index: usize) -> bool {
         match preset {
             PresetChoice::RustLibrary => match option_index {
-                0 => self.enable_coverage,
-                1 => self.enable_linter,
-                2 => self.enable_formatter,
-                3 => self.enable_security,
+                0 => self.rust_lib_enable_coverage,
+                1 => self.rust_lib_enable_linter,
+                2 => self.rust_lib_enable_formatter,
+                3 => self.rust_lib_enable_security,
                 _ => false,
             },
             PresetChoice::RustBinary => match option_index {
-                0 => self.enable_linter,
-                1 => self.enable_build_release,
+                0 => self.rust_bin_enable_linter,
+                1 => self.rust_bin_enable_build_release,
                 _ => false,
             },
             PresetChoice::PythonApp => match option_index {
-                0 => self.enable_linter,
+                0 => self.python_enable_linter,
                 1 => false, // Sub-option for linter tool (not a checkbox)
-                2 => self.enable_type_check,
-                3 => self.enable_formatter,
+                2 => self.python_enable_type_check,
+                3 => self.python_enable_formatter,
                 4 => false, // Sub-option for formatter tool (not a checkbox)
-                5 => self.enable_build_wheel,
+                5 => self.python_enable_build_wheel,
                 _ => false,
             },
             PresetChoice::GoApp => match option_index {
-                0 => self.enable_linter,
-                1 => self.enable_security,
+                0 => self.go_enable_linter,
+                1 => self.go_enable_security,
                 _ => false,
             },
             PresetChoice::Docker => match option_index {
@@ -538,32 +522,72 @@ impl TuiState {
         }
     }
 
-    pub fn toggle_option(&mut self, preset: PresetChoice, option_index: usize) {
+    pub fn set_option_value(&mut self, preset: PresetChoice, option_index: usize, value: bool) {
         match preset {
             PresetChoice::RustLibrary => match option_index {
-                0 => self.enable_coverage = !self.enable_coverage,
-                1 => self.enable_linter = !self.enable_linter,
-                2 => self.enable_formatter = !self.enable_formatter,
-                3 => self.enable_security = !self.enable_security,
+                0 => self.rust_lib_enable_coverage = value,
+                1 => self.rust_lib_enable_linter = value,
+                2 => self.rust_lib_enable_formatter = value,
+                3 => self.rust_lib_enable_security = value,
                 _ => {}
             },
             PresetChoice::RustBinary => match option_index {
-                0 => self.enable_linter = !self.enable_linter,
-                1 => self.enable_build_release = !self.enable_build_release,
+                0 => self.rust_bin_enable_linter = value,
+                1 => self.rust_bin_enable_build_release = value,
                 _ => {}
             },
             PresetChoice::PythonApp => match option_index {
-                0 => self.enable_linter = !self.enable_linter,
-                1 => self.python_linter_tool = self.python_linter_tool.toggle(),
-                2 => self.enable_type_check = !self.enable_type_check,
-                3 => self.enable_formatter = !self.enable_formatter,
-                4 => self.python_formatter_tool = self.python_formatter_tool.toggle(),
-                5 => self.enable_build_wheel = !self.enable_build_wheel,
+                0 => self.python_enable_linter = value,
+                1 => {} // Sub-option for linter tool (not a checkbox)
+                2 => self.python_enable_type_check = value,
+                3 => self.python_enable_formatter = value,
+                4 => {} // Sub-option for formatter tool (not a checkbox)
+                5 => self.python_enable_build_wheel = value,
                 _ => {}
             },
             PresetChoice::GoApp => match option_index {
-                0 => self.enable_linter = !self.enable_linter,
-                1 => self.enable_security = !self.enable_security,
+                0 => self.go_enable_linter = value,
+                1 => self.go_enable_security = value,
+                _ => {}
+            },
+            PresetChoice::Docker => match option_index {
+                0 => self.docker_use_dockerhub = value,
+                1 => self.docker_use_github_registry = value,
+                2 => self.docker_enable_cache = value,
+                3 => self.docker_tags_only = value,
+                4 => self.docker_enable_qemu = value,
+                5 => self.docker_multiplatform = value,
+                _ => {}
+            },
+        }
+    }
+
+    pub fn toggle_option(&mut self, preset: PresetChoice, option_index: usize) {
+        match preset {
+            PresetChoice::RustLibrary => match option_index {
+                0 => self.rust_lib_enable_coverage = !self.rust_lib_enable_coverage,
+                1 => self.rust_lib_enable_linter = !self.rust_lib_enable_linter,
+                2 => self.rust_lib_enable_formatter = !self.rust_lib_enable_formatter,
+                3 => self.rust_lib_enable_security = !self.rust_lib_enable_security,
+                _ => {}
+            },
+            PresetChoice::RustBinary => match option_index {
+                0 => self.rust_bin_enable_linter = !self.rust_bin_enable_linter,
+                1 => self.rust_bin_enable_build_release = !self.rust_bin_enable_build_release,
+                _ => {}
+            },
+            PresetChoice::PythonApp => match option_index {
+                0 => self.python_enable_linter = !self.python_enable_linter,
+                1 => self.python_linter_tool = self.python_linter_tool.toggle(),
+                2 => self.python_enable_type_check = !self.python_enable_type_check,
+                3 => self.python_enable_formatter = !self.python_enable_formatter,
+                4 => self.python_formatter_tool = self.python_formatter_tool.toggle(),
+                5 => self.python_enable_build_wheel = !self.python_enable_build_wheel,
+                _ => {}
+            },
+            PresetChoice::GoApp => match option_index {
+                0 => self.go_enable_linter = !self.go_enable_linter,
+                1 => self.go_enable_security = !self.go_enable_security,
                 _ => {}
             },
             PresetChoice::Docker => match option_index {
@@ -598,11 +622,22 @@ impl TuiState {
     }
 
     pub fn toggle_preset(&mut self, preset: PresetChoice) {
-        if self.enabled_presets.contains(&preset) {
-            self.enabled_presets.remove(&preset);
-        } else {
-            self.enabled_presets.insert(preset);
+        // Check if any options are currently enabled
+        let has_enabled = self.has_any_options_enabled(preset);
+
+        // Toggle all options for this preset
+        let options = preset.options();
+        for i in 0..options.len() {
+            // Skip sub-options (tool selectors) which aren't checkboxes
+            let option_name = options[i];
+            if option_name.starts_with("  → ") {
+                continue;
+            }
+
+            // Set all options to the opposite of current state
+            self.set_option_value(preset, i, !has_enabled);
         }
+
         self.regenerate_yaml();
     }
 

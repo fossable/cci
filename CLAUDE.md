@@ -7,16 +7,7 @@ project.
 
 `cci` is a tool that generates CI/CD configurations for multiple platforms
 (GitHub Actions, GitLab CI, CircleCI, Jenkins) from a common specification. It
-uses Rust structs as a single source of truth, transforming them via
-platform-specific adapters into the appropriate configuration format.
-
-**Architecture:**
-
-```
-Preset → Generic Pipeline → Platform Adapter → Platform IR → YAML/Config File
-```
-
-**No templates** - everything uses Rust structs + serde serialization.
+uses Rust structs as "presets" that can be composed into a final template.
 
 ## Maintenance Tasks
 
@@ -64,48 +55,6 @@ synchronized with upstream CI platform specifications.
    - **As needed** when users report compatibility issues
 
 ## Development Guidelines
-
-### Adding a New Platform
-
-1. Create platform directory: `src/platforms/{platform}/`
-2. Define IR models in `models.rs` with serde derives
-3. Implement `PlatformAdapter` trait in `adapter.rs`
-4. Add transformation logic for all `Step` enum variants
-5. Write tests for transformation and serialization
-6. Export in `src/platforms/mod.rs`
-
-### Adding a New Preset
-
-1. Create preset function in appropriate file: `src/presets/{language}.rs`
-2. Return a `Pipeline` struct with appropriate jobs and steps
-3. Add tests to verify the preset structure
-4. Export in `src/presets/mod.rs`
-5. Update CLI `presets` command to list it
-
-### Adding a New Language
-
-1. Add variant to `Language` enum in `src/models/step.rs`
-2. Update all platform adapters to handle the new language in:
-   - `SetupToolchain` step
-   - `InstallDependencies` step
-   - `RunTests` step
-   - `RunLinter` step
-   - `SecurityScan` step
-   - `Build` step
-3. Create detector in `src/detection/{language}.rs`
-4. Register detector in `DetectorRegistry`
-5. Add presets in `src/presets/{language}.rs`
-
-## Testing Strategy
-
-- **Unit tests**: Test individual components (models, transformations)
-- **Integration tests**: Test full pipeline generation
-- **Example programs**: Demonstrate end-to-end functionality
-- **Fixture tests**: Use real project structures for detection testing
-
-Run tests: `cargo test` Run examples: `cargo run --example generate_github`
-
-## Code Quality
 
 - Follow Rust idioms and conventions
 - Use `clippy` for linting: `cargo clippy`

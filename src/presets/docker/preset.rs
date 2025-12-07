@@ -273,7 +273,7 @@ impl ToGitHub for DockerPreset {
         });
 
         jobs.insert(
-            "docker-build".to_string(),
+            "docker/build".to_string(),
             GitHubJob {
                 runs_on: "ubuntu-latest".to_string(),
                 steps: build_steps,
@@ -360,7 +360,7 @@ impl ToGitLab for DockerPreset {
         }
 
         jobs.insert(
-            "docker-build".to_string(),
+            "docker/build".to_string(),
             GitLabJob {
                 stage: "build".to_string(),
                 image: Some("docker:latest".to_string()),
@@ -452,7 +452,7 @@ impl ToCircleCI for DockerPreset {
 
         let mut jobs = BTreeMap::new();
         jobs.insert(
-            "docker-build".to_string(),
+            "docker/build".to_string(),
             CircleCIJob {
                 docker: vec![CircleCIDocker {
                     image: "cimg/base:stable".to_string(),
@@ -469,7 +469,7 @@ impl ToCircleCI for DockerPreset {
             workflows: BTreeMap::from([(
                 "main".to_string(),
                 CircleCIWorkflow {
-                    jobs: vec![CircleCIWorkflowJob::Simple("docker-build".to_string())],
+                    jobs: vec![CircleCIWorkflowJob::Simple("docker/build".to_string())],
                 },
             )]),
         })
@@ -666,9 +666,9 @@ mod tests {
         let workflow = preset.to_github().unwrap();
 
         assert_eq!(workflow.name, "Docker Build and Push");
-        assert!(workflow.jobs.contains_key("docker-build"));
+        assert!(workflow.jobs.contains_key("docker/build"));
 
-        let job = &workflow.jobs["docker-build"];
+        let job = &workflow.jobs["docker/build"];
         assert_eq!(job.runs_on, "ubuntu-latest");
 
         // Should have checkout, buildx setup, metadata, and build steps
@@ -683,7 +683,7 @@ mod tests {
             .build();
 
         let workflow = preset.to_github().unwrap();
-        let job = &workflow.jobs["docker-build"];
+        let job = &workflow.jobs["docker/build"];
 
         // Should include login step for DockerHub
         let has_dockerhub_login = job.steps.iter().any(|step| {
@@ -700,7 +700,7 @@ mod tests {
             .build();
 
         let workflow = preset.to_github().unwrap();
-        let job = &workflow.jobs["docker-build"];
+        let job = &workflow.jobs["docker/build"];
 
         // Should include login step for GHCR
         let has_ghcr_login = job.steps.iter().any(|step| {
@@ -736,7 +736,7 @@ mod tests {
 
         let config = preset.to_gitlab().unwrap();
 
-        assert!(config.jobs.contains_key("docker-build"));
+        assert!(config.jobs.contains_key("docker/build"));
         assert_eq!(config.stages, Some(vec!["build".to_string()]));
     }
 
@@ -749,7 +749,7 @@ mod tests {
         let config = preset.to_circleci().unwrap();
 
         assert_eq!(config.version, "2.1");
-        assert!(config.jobs.contains_key("docker-build"));
+        assert!(config.jobs.contains_key("docker/build"));
     }
 
     #[test]

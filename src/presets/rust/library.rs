@@ -142,7 +142,7 @@ impl ToGitHub for RustLibraryPreset {
         }
 
         jobs.insert(
-            "test".to_string(),
+            "rust/test".to_string(),
             GitHubJob {
                 runs_on: "ubuntu-latest".to_string(),
                 steps: test_steps,
@@ -155,7 +155,7 @@ impl ToGitHub for RustLibraryPreset {
         // Lint job (optional)
         if self.enable_linter {
             jobs.insert(
-                "lint".to_string(),
+                "rust/lint".to_string(),
                 GitHubJob {
                     runs_on: "ubuntu-latest".to_string(),
                     steps: vec![
@@ -200,7 +200,7 @@ impl ToGitHub for RustLibraryPreset {
         // Format check job (optional)
         if self.enable_format_check {
             jobs.insert(
-                "format".to_string(),
+                "rust/format".to_string(),
                 GitHubJob {
                     runs_on: "ubuntu-latest".to_string(),
                     steps: vec![
@@ -245,7 +245,7 @@ impl ToGitHub for RustLibraryPreset {
         // Security scan job (optional)
         if self.enable_security_scan {
             jobs.insert(
-                "security".to_string(),
+                "rust/security".to_string(),
                 GitHubJob {
                     runs_on: "ubuntu-latest".to_string(),
                     steps: vec![
@@ -318,7 +318,7 @@ impl ToGitLab for RustLibraryPreset {
         }
 
         jobs.insert(
-            "test".to_string(),
+            "rust/test".to_string(),
             GitLabJob {
                 stage: "test".to_string(),
                 image: Some("rust:latest".to_string()),
@@ -352,7 +352,7 @@ impl ToGitLab for RustLibraryPreset {
         if self.enable_linter {
             stages.push("lint".to_string());
             jobs.insert(
-                "lint".to_string(),
+                "rust/lint".to_string(),
                 GitLabJob {
                     stage: "lint".to_string(),
                     image: Some("rust:latest".to_string()),
@@ -383,7 +383,7 @@ impl ToGitLab for RustLibraryPreset {
                 stages.push("lint".to_string());
             }
             jobs.insert(
-                "format".to_string(),
+                "rust/format".to_string(),
                 GitLabJob {
                     stage: "lint".to_string(),
                     image: Some("rust:latest".to_string()),
@@ -411,7 +411,7 @@ impl ToGitLab for RustLibraryPreset {
                 stages.push("security".to_string());
             }
             jobs.insert(
-                "security".to_string(),
+                "rust/security".to_string(),
                 GitLabJob {
                     stage: "security".to_string(),
                     image: Some("rust:latest".to_string()),
@@ -502,7 +502,7 @@ impl ToCircleCI for RustLibraryPreset {
         });
 
         jobs.insert(
-            "test".to_string(),
+            "rust/test".to_string(),
             CircleCIJob {
                 docker: vec![CircleCIDocker {
                     image: "rust:latest".to_string(),
@@ -512,12 +512,12 @@ impl ToCircleCI for RustLibraryPreset {
             },
         );
 
-        workflow_jobs.push(CircleCIWorkflowJob::Simple("test".to_string()));
+        workflow_jobs.push(CircleCIWorkflowJob::Simple("rust/test".to_string()));
 
         // Lint job (optional)
         if self.enable_linter {
             jobs.insert(
-                "lint".to_string(),
+                "rust/lint".to_string(),
                 CircleCIJob {
                     docker: vec![CircleCIDocker {
                         image: "rust:latest".to_string(),
@@ -546,13 +546,13 @@ impl ToCircleCI for RustLibraryPreset {
                     environment: None,
                 },
             );
-            workflow_jobs.push(CircleCIWorkflowJob::Simple("lint".to_string()));
+            workflow_jobs.push(CircleCIWorkflowJob::Simple("rust/lint".to_string()));
         }
 
         // Format check job (optional)
         if self.enable_format_check {
             jobs.insert(
-                "format".to_string(),
+                "rust/format".to_string(),
                 CircleCIJob {
                     docker: vec![CircleCIDocker {
                         image: "rust:latest".to_string(),
@@ -581,7 +581,7 @@ impl ToCircleCI for RustLibraryPreset {
                     environment: None,
                 },
             );
-            workflow_jobs.push(CircleCIWorkflowJob::Simple("format".to_string()));
+            workflow_jobs.push(CircleCIWorkflowJob::Simple("rust/format".to_string()));
         }
 
         Ok(CircleCIConfig {
@@ -757,8 +757,8 @@ mod tests {
         let workflow = preset.to_github().unwrap();
 
         assert_eq!(workflow.name, "CI");
-        assert!(workflow.jobs.contains_key("test"));
-        assert!(!workflow.jobs.contains_key("lint"));
+        assert!(workflow.jobs.contains_key("rust/test"));
+        assert!(!workflow.jobs.contains_key("rust/lint"));
     }
 
     #[test]
@@ -766,8 +766,8 @@ mod tests {
         let preset = RustLibraryPreset::builder().linter(true).build();
         let workflow = preset.to_github().unwrap();
 
-        assert!(workflow.jobs.contains_key("test"));
-        assert!(workflow.jobs.contains_key("lint"));
+        assert!(workflow.jobs.contains_key("rust/test"));
+        assert!(workflow.jobs.contains_key("rust/lint"));
     }
 
     #[test]

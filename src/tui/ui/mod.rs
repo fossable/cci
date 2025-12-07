@@ -96,26 +96,59 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             TreeItem::Preset(preset) => {
                 let is_expanded = state.expanded_presets.contains(preset);
                 let has_options_enabled = state.has_any_options_enabled(*preset);
+                let matches_project = state.preset_matches_project(*preset);
 
                 let expand_icon = if is_expanded { "▼" } else { "▶" };
                 let circle_icon = if has_options_enabled { "●" } else { "○" };
 
-                // Create styled line with green circle but normal text
+                // Create styled line with appropriate colors
                 let line = if has_options_enabled {
+                    let circle_color = if matches_project { Color::Green } else { Color::DarkGray };
+                    let text_color = if is_selected {
+                        Color::Yellow
+                    } else if !matches_project {
+                        Color::DarkGray
+                    } else {
+                        Color::White
+                    };
+
                     Line::from(vec![
-                        Span::raw(format!("{} ", expand_icon)),
-                        Span::styled(circle_icon, Style::default().fg(Color::Green)),
-                        Span::raw(format!(" {}", preset.name())),
+                        Span::styled(format!("{} ", expand_icon), Style::default().fg(text_color)),
+                        Span::styled(circle_icon, Style::default().fg(circle_color)),
+                        Span::styled(format!(" {}", preset.name()), Style::default().fg(text_color)),
                     ])
                 } else {
-                    Line::from(format!("{} {} {}", expand_icon, circle_icon, preset.name()))
+                    let text_color = if is_selected {
+                        Color::Yellow
+                    } else if !matches_project {
+                        Color::DarkGray
+                    } else {
+                        Color::White
+                    };
+
+                    Line::from(vec![
+                        Span::styled(
+                            format!("{} {} {}", expand_icon, circle_icon, preset.name()),
+                            Style::default().fg(text_color)
+                        )
+                    ])
                 };
 
-                ListItem::new(line).style(style)
+                // Override the base style to not apply yellow to non-matching presets
+                let item_style = if is_selected && matches_project {
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                } else if is_selected {
+                    Style::default().add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                };
+
+                ListItem::new(line).style(item_style)
             }
             TreeItem::Option(preset, option_index) => {
                 let option_name = preset.options()[*option_index];
                 let is_enabled = state.get_option_value(*preset, *option_index);
+                let matches_project = state.preset_matches_project(*preset);
 
                 // Check if this is a sub-option (tool selector)
                 let display_text = if option_name.starts_with("  → ") {
@@ -137,7 +170,18 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &TuiState) {
                     format!("    {} {}", checkbox, option_name)
                 };
 
-                ListItem::new(display_text).style(style)
+                // Apply dimmed style for non-matching presets' options
+                let item_style = if is_selected && matches_project {
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                } else if is_selected {
+                    Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)
+                } else if !matches_project {
+                    Style::default().fg(Color::DarkGray)
+                } else {
+                    style
+                };
+
+                ListItem::new(display_text).style(item_style)
             }
         };
 
@@ -169,8 +213,13 @@ fn render_preview_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             .scroll((state.preview_scroll, 0))
     };
 
+    let output_path = state.target_platform.output_path();
+    let filename = output_path
+        .to_str()
+        .unwrap_or("config.yml");
+
     let block = Block::default()
-        .title(format!(" Preview - {} (Shift+J/K to scroll) ", state.target_platform.name()))
+        .title(format!(" Preview - {} (Shift+J/K to scroll) ", filename))
         .borders(Borders::ALL);
 
     f.render_widget(preview.block(block), area);

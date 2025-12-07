@@ -8,13 +8,75 @@ use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::BTreeMap;
 
+/// Linter tool options for Python
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PythonLinterTool {
+    Flake8,
+    Ruff,
+}
+
+impl PythonLinterTool {
+    pub fn name(&self) -> &'static str {
+        match self {
+            PythonLinterTool::Flake8 => "flake8",
+            PythonLinterTool::Ruff => "ruff",
+        }
+    }
+
+    pub fn check_command(&self) -> &'static str {
+        match self {
+            PythonLinterTool::Flake8 => "flake8 .",
+            PythonLinterTool::Ruff => "ruff check .",
+        }
+    }
+
+    pub fn toggle(&self) -> Self {
+        match self {
+            PythonLinterTool::Flake8 => PythonLinterTool::Ruff,
+            PythonLinterTool::Ruff => PythonLinterTool::Flake8,
+        }
+    }
+}
+
+/// Formatter tool options for Python
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PythonFormatterTool {
+    Black,
+    Ruff,
+}
+
+impl PythonFormatterTool {
+    pub fn name(&self) -> &'static str {
+        match self {
+            PythonFormatterTool::Black => "black",
+            PythonFormatterTool::Ruff => "ruff",
+        }
+    }
+
+    pub fn check_command(&self) -> &'static str {
+        match self {
+            PythonFormatterTool::Black => "black --check .",
+            PythonFormatterTool::Ruff => "ruff format --check .",
+        }
+    }
+
+    pub fn toggle(&self) -> Self {
+        match self {
+            PythonFormatterTool::Black => PythonFormatterTool::Ruff,
+            PythonFormatterTool::Ruff => PythonFormatterTool::Black,
+        }
+    }
+}
+
 /// Preset for Python application projects
 #[derive(Debug, Clone)]
 pub struct PythonAppPreset {
     python_version: String,
     enable_linter: bool,
+    linter_tool: PythonLinterTool,
     enable_type_check: bool,
     enable_formatter_check: bool,
+    formatter_tool: PythonFormatterTool,
 }
 
 impl PythonAppPreset {
@@ -25,12 +87,26 @@ impl PythonAppPreset {
 }
 
 /// Builder for PythonAppPreset
-#[derive(Default)]
 pub struct PythonAppPresetBuilder {
     python_version: Option<String>,
     enable_linter: bool,
+    linter_tool: PythonLinterTool,
     enable_type_check: bool,
     enable_formatter_check: bool,
+    formatter_tool: PythonFormatterTool,
+}
+
+impl Default for PythonAppPresetBuilder {
+    fn default() -> Self {
+        Self {
+            python_version: None,
+            enable_linter: false,
+            linter_tool: PythonLinterTool::Flake8,
+            enable_type_check: false,
+            enable_formatter_check: false,
+            formatter_tool: PythonFormatterTool::Black,
+        }
+    }
 }
 
 impl PythonAppPresetBuilder {
@@ -40,9 +116,15 @@ impl PythonAppPresetBuilder {
         self
     }
 
-    /// Enable or disable linting with flake8/pylint
+    /// Enable or disable linting
     pub fn linter(mut self, enable: bool) -> Self {
         self.enable_linter = enable;
+        self
+    }
+
+    /// Set the linter tool
+    pub fn linter_tool(mut self, tool: PythonLinterTool) -> Self {
+        self.linter_tool = tool;
         self
     }
 
@@ -52,9 +134,15 @@ impl PythonAppPresetBuilder {
         self
     }
 
-    /// Enable or disable formatter checking with black
+    /// Enable or disable formatter checking
     pub fn formatter_check(mut self, enable: bool) -> Self {
         self.enable_formatter_check = enable;
+        self
+    }
+
+    /// Set the formatter tool
+    pub fn formatter_tool(mut self, tool: PythonFormatterTool) -> Self {
+        self.formatter_tool = tool;
         self
     }
 
@@ -63,8 +151,10 @@ impl PythonAppPresetBuilder {
         PythonAppPreset {
             python_version: self.python_version.unwrap_or_else(|| "3.11".to_string()),
             enable_linter: self.enable_linter,
+            linter_tool: self.linter_tool,
             enable_type_check: self.enable_type_check,
             enable_formatter_check: self.enable_formatter_check,
+            formatter_tool: self.formatter_tool,
         }
     }
 }
@@ -109,7 +199,7 @@ impl ToGitHub for PythonAppPreset {
         ];
 
         jobs.insert(
-            "test".to_string(),
+            "python/test".to_string(),
             GitHubJob {
                 runs_on: "ubuntu-latest".to_string(),
                 steps: test_steps,
@@ -121,8 +211,11 @@ impl ToGitHub for PythonAppPreset {
 
         // Lint job (optional)
         if self.enable_linter {
+            let linter_name = self.linter_tool.name();
+            let linter_cmd = self.linter_tool.check_command();
+
             jobs.insert(
-                "lint".to_string(),
+                "python/lint".to_string(),
                 GitHubJob {
                     runs_on: "ubuntu-latest".to_string(),
                     steps: vec![
@@ -144,16 +237,16 @@ impl ToGitHub for PythonAppPreset {
                             env: None,
                         },
                         GitHubStep {
-                            name: Some("Install flake8".to_string()),
+                            name: Some(format!("Install {}", linter_name)),
                             uses: None,
-                            run: Some("pip install flake8".to_string()),
+                            run: Some(format!("pip install {}", linter_name)),
                             with: None,
                             env: None,
                         },
                         GitHubStep {
-                            name: Some("Run flake8".to_string()),
+                            name: Some(format!("Run {}", linter_name)),
                             uses: None,
-                            run: Some("flake8 .".to_string()),
+                            run: Some(linter_cmd.to_string()),
                             with: None,
                             env: None,
                         },
@@ -168,7 +261,7 @@ impl ToGitHub for PythonAppPreset {
         // Type check job (optional)
         if self.enable_type_check {
             jobs.insert(
-                "type-check".to_string(),
+                "python/type-check".to_string(),
                 GitHubJob {
                     runs_on: "ubuntu-latest".to_string(),
                     steps: vec![
@@ -245,15 +338,22 @@ impl ToGitLab for PythonAppPreset {
         let mut script = vec!["pip install -r requirements.txt".to_string(), "pytest".to_string()];
 
         if self.enable_linter {
-            script.insert(1, "flake8 .".to_string());
+            script.insert(1, format!("pip install {}", self.linter_tool.name()));
+            script.insert(2, self.linter_tool.check_command().to_string());
         }
 
         if self.enable_type_check {
-            script.insert(1, "mypy .".to_string());
+            script.insert(1, "pip install mypy".to_string());
+            script.insert(2, "mypy .".to_string());
+        }
+
+        if self.enable_formatter_check {
+            script.insert(1, format!("pip install {}", self.formatter_tool.name()));
+            script.insert(2, self.formatter_tool.check_command().to_string());
         }
 
         jobs.insert(
-            "test".to_string(),
+            "python/test".to_string(),
             GitLabJob {
                 stage: "test".to_string(),
                 image: Some(format!("python:{}", self.python_version)),
@@ -292,7 +392,28 @@ impl ToCircleCI for PythonAppPreset {
             },
         ];
 
+        if self.enable_linter {
+            steps.push(CircleCIStep::Command {
+                run: CircleCIRun::Detailed {
+                    name: format!("Install {}", self.linter_tool.name()),
+                    command: format!("pip install {}", self.linter_tool.name()),
+                },
+            });
+            steps.push(CircleCIStep::Command {
+                run: CircleCIRun::Detailed {
+                    name: "Lint".to_string(),
+                    command: self.linter_tool.check_command().to_string(),
+                },
+            });
+        }
+
         if self.enable_type_check {
+            steps.push(CircleCIStep::Command {
+                run: CircleCIRun::Detailed {
+                    name: "Install mypy".to_string(),
+                    command: "pip install mypy".to_string(),
+                },
+            });
             steps.push(CircleCIStep::Command {
                 run: CircleCIRun::Detailed {
                     name: "Type check".to_string(),
@@ -301,11 +422,17 @@ impl ToCircleCI for PythonAppPreset {
             });
         }
 
-        if self.enable_linter {
+        if self.enable_formatter_check {
             steps.push(CircleCIStep::Command {
                 run: CircleCIRun::Detailed {
-                    name: "Lint".to_string(),
-                    command: "flake8 .".to_string(),
+                    name: format!("Install {}", self.formatter_tool.name()),
+                    command: format!("pip install {}", self.formatter_tool.name()),
+                },
+            });
+            steps.push(CircleCIStep::Command {
+                run: CircleCIRun::Detailed {
+                    name: "Format check".to_string(),
+                    command: self.formatter_tool.check_command().to_string(),
                 },
             });
         }
@@ -319,7 +446,7 @@ impl ToCircleCI for PythonAppPreset {
 
         let mut jobs = BTreeMap::new();
         jobs.insert(
-            "test".to_string(),
+            "python/test".to_string(),
             CircleCIJob {
                 docker: vec![CircleCIDocker {
                     image: format!("python:{}", self.python_version),
@@ -336,7 +463,7 @@ impl ToCircleCI for PythonAppPreset {
             workflows: BTreeMap::from([(
                 "main".to_string(),
                 CircleCIWorkflow {
-                    jobs: vec![CircleCIWorkflowJob::Simple("test".to_string())],
+                    jobs: vec![CircleCIWorkflowJob::Simple("python/test".to_string())],
                 },
             )]),
         })

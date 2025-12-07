@@ -1,3 +1,4 @@
+pub mod constants;
 pub mod detection;
 pub mod error;
 pub mod platforms;

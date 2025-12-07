@@ -128,7 +128,7 @@ impl ToGitHub for RustBinaryPreset {
         }
 
         jobs.insert(
-            "test".to_string(),
+            "rust/test".to_string(),
             GitHubJob {
                 runs_on: "ubuntu-latest".to_string(),
                 steps: test_steps,
@@ -141,7 +141,7 @@ impl ToGitHub for RustBinaryPreset {
         // Lint job (optional)
         if self.enable_linter {
             jobs.insert(
-                "lint".to_string(),
+                "rust/lint".to_string(),
                 GitHubJob {
                     runs_on: "ubuntu-latest".to_string(),
                     steps: vec![
@@ -216,7 +216,7 @@ impl ToGitLab for RustBinaryPreset {
 
         // Test job
         jobs.insert(
-            "test".to_string(),
+            "rust/test".to_string(),
             GitLabJob {
                 stage: "test".to_string(),
                 image: Some(format!("rust:{}", self.rust_version)),
@@ -239,7 +239,7 @@ impl ToGitLab for RustBinaryPreset {
         // Build job
         if self.build_release {
             jobs.insert(
-                "build".to_string(),
+                "rust/build".to_string(),
                 GitLabJob {
                     stage: "build".to_string(),
                     image: Some(format!("rust:{}", self.rust_version)),
@@ -281,7 +281,7 @@ impl ToCircleCI for RustBinaryPreset {
 
         // Test job
         jobs.insert(
-            "test".to_string(),
+            "rust/test".to_string(),
             CircleCIJob {
                 docker: vec![CircleCIDocker {
                     image: format!("rust:{}", self.rust_version),
@@ -302,7 +302,7 @@ impl ToCircleCI for RustBinaryPreset {
         // Build job
         if self.build_release {
             jobs.insert(
-                "build".to_string(),
+                "rust/build".to_string(),
                 CircleCIJob {
                     docker: vec![CircleCIDocker {
                         image: format!("rust:{}", self.rust_version),
@@ -330,11 +330,11 @@ impl ToCircleCI for RustBinaryPreset {
                 CircleCIWorkflow {
                     jobs: if self.build_release {
                         vec![
-                            CircleCIWorkflowJob::Simple("test".to_string()),
-                            CircleCIWorkflowJob::Simple("build".to_string()),
+                            CircleCIWorkflowJob::Simple("rust/test".to_string()),
+                            CircleCIWorkflowJob::Simple("rust/build".to_string()),
                         ]
                     } else {
-                        vec![CircleCIWorkflowJob::Simple("test".to_string())]
+                        vec![CircleCIWorkflowJob::Simple("rust/test".to_string())]
                     },
                 },
             )]),
@@ -387,7 +387,7 @@ impl Detectable for RustBinaryPreset {
             })
         });
 
-        has_rust_toolchain && (has_cargo_build || workflow.jobs.contains_key("build"))
+        has_rust_toolchain && (has_cargo_build || workflow.jobs.contains_key("rust/build"))
     }
 
     fn matches_gitlab(&self, _config: &GitLabCI) -> bool {

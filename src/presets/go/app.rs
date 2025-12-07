@@ -107,7 +107,7 @@ impl ToGitHub for GoAppPreset {
         ];
 
         jobs.insert(
-            "test".to_string(),
+            "go/test".to_string(),
             GitHubJob {
                 runs_on: "ubuntu-latest".to_string(),
                 steps: test_steps,
@@ -120,7 +120,7 @@ impl ToGitHub for GoAppPreset {
         // Lint job (optional)
         if self.enable_linter {
             jobs.insert(
-                "lint".to_string(),
+                "go/lint".to_string(),
                 GitHubJob {
                     runs_on: "ubuntu-latest".to_string(),
                     steps: vec![
@@ -162,7 +162,7 @@ impl ToGitHub for GoAppPreset {
         // Security scan job (optional)
         if self.enable_security_scan {
             jobs.insert(
-                "security".to_string(),
+                "go/security".to_string(),
                 GitHubJob {
                     runs_on: "ubuntu-latest".to_string(),
                     steps: vec![
@@ -243,7 +243,7 @@ impl ToGitLab for GoAppPreset {
         }
 
         jobs.insert(
-            "test".to_string(),
+            "go/test".to_string(),
             GitLabJob {
                 stage: "test".to_string(),
                 image: Some(format!("golang:{}", self.go_version)),
@@ -304,7 +304,7 @@ impl ToCircleCI for GoAppPreset {
 
         let mut jobs = BTreeMap::new();
         jobs.insert(
-            "test".to_string(),
+            "go/test".to_string(),
             CircleCIJob {
                 docker: vec![CircleCIDocker {
                     image: format!("golang:{}", self.go_version),
@@ -321,7 +321,7 @@ impl ToCircleCI for GoAppPreset {
             workflows: BTreeMap::from([(
                 "main".to_string(),
                 CircleCIWorkflow {
-                    jobs: vec![CircleCIWorkflowJob::Simple("test".to_string())],
+                    jobs: vec![CircleCIWorkflowJob::Simple("go/test".to_string())],
                 },
             )]),
         })
