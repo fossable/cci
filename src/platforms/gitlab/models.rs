@@ -1,16 +1,16 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GitLabCI {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stages: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub variables: Option<HashMap<String, String>>,
+    pub variables: Option<BTreeMap<String, String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache: Option<GitLabCache>,
     #[serde(flatten)]
-    pub jobs: HashMap<String, GitLabJob>,
+    pub jobs: BTreeMap<String, GitLabJob>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -6,7 +6,7 @@ use crate::platforms::github::models::{
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Preset for Rust library projects
 #[derive(Debug, Clone)]
@@ -80,7 +80,7 @@ impl RustLibraryPresetBuilder {
 
 impl ToGitHub for RustLibraryPreset {
     fn to_github(&self) -> Result<GitHubWorkflow> {
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
 
         // Test job (always present)
         let mut test_steps = vec![
@@ -95,7 +95,7 @@ impl ToGitHub for RustLibraryPreset {
                 name: Some("Setup Rust toolchain".to_string()),
                 uses: Some("dtolnay/rust-toolchain@stable".to_string()),
                 run: None,
-                with: Some(HashMap::from([(
+                with: Some(BTreeMap::from([(
                     "toolchain".to_string(),
                     serde_yaml::Value::String(self.rust_version.clone()),
                 )])),
@@ -170,7 +170,7 @@ impl ToGitHub for RustLibraryPreset {
                             name: Some("Setup Rust toolchain".to_string()),
                             uses: Some("dtolnay/rust-toolchain@stable".to_string()),
                             run: None,
-                            with: Some(HashMap::from([
+                            with: Some(BTreeMap::from([
                                 (
                                     "toolchain".to_string(),
                                     serde_yaml::Value::String(self.rust_version.clone()),
@@ -215,7 +215,7 @@ impl ToGitHub for RustLibraryPreset {
                             name: Some("Setup Rust toolchain".to_string()),
                             uses: Some("dtolnay/rust-toolchain@stable".to_string()),
                             run: None,
-                            with: Some(HashMap::from([
+                            with: Some(BTreeMap::from([
                                 (
                                     "toolchain".to_string(),
                                     serde_yaml::Value::String(self.rust_version.clone()),
@@ -260,7 +260,7 @@ impl ToGitHub for RustLibraryPreset {
                             name: Some("Run cargo audit".to_string()),
                             uses: Some("rustsec/audit-check@v1".to_string()),
                             run: None,
-                            with: Some(HashMap::from([(
+                            with: Some(BTreeMap::from([(
                                 "token".to_string(),
                                 serde_yaml::Value::String("${{ secrets.GITHUB_TOKEN }}".to_string()),
                             )])),
@@ -276,7 +276,7 @@ impl ToGitHub for RustLibraryPreset {
 
         Ok(GitHubWorkflow {
             name: "CI".to_string(),
-            on: GitHubTriggers::Detailed(HashMap::from([
+            on: GitHubTriggers::Detailed(BTreeMap::from([
                 (
                     "push".to_string(),
                     GitHubTriggerConfig {
@@ -302,7 +302,7 @@ impl ToGitLab for RustLibraryPreset {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::{GitLabCache, GitLabJob, GitLabOnly};
 
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
         let mut stages = vec!["test".to_string()];
 
         // Test job (always present)
@@ -448,7 +448,7 @@ impl ToCircleCI for RustLibraryPreset {
     fn to_circleci(&self) -> Result<CircleCIConfig> {
         use crate::platforms::circleci::models::*;
 
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
         let mut workflow_jobs = vec![];
 
         // Test job (always present)
@@ -588,7 +588,7 @@ impl ToCircleCI for RustLibraryPreset {
             version: "2.1".to_string(),
             orbs: None,
             jobs,
-            workflows: HashMap::from([(
+            workflows: BTreeMap::from([(
                 "ci".to_string(),
                 CircleCIWorkflow {
                     jobs: workflow_jobs,

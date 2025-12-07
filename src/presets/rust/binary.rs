@@ -6,7 +6,7 @@ use crate::platforms::github::models::{
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Preset for Rust binary/application projects
 #[derive(Debug, Clone)]
@@ -80,7 +80,7 @@ impl RustBinaryPresetBuilder {
 
 impl ToGitHub for RustBinaryPreset {
     fn to_github(&self) -> Result<GitHubWorkflow> {
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
 
         // Test job (always present)
         let mut test_steps = vec![
@@ -95,7 +95,7 @@ impl ToGitHub for RustBinaryPreset {
                 name: Some("Setup Rust toolchain".to_string()),
                 uses: Some("dtolnay/rust-toolchain@stable".to_string()),
                 run: None,
-                with: Some(HashMap::from([(
+                with: Some(BTreeMap::from([(
                     "toolchain".to_string(),
                     serde_yaml::Value::String(self.rust_version.clone()),
                 )])),
@@ -156,7 +156,7 @@ impl ToGitHub for RustBinaryPreset {
                             name: Some("Setup Rust toolchain".to_string()),
                             uses: Some("dtolnay/rust-toolchain@stable".to_string()),
                             run: None,
-                            with: Some(HashMap::from([
+                            with: Some(BTreeMap::from([
                                 (
                                     "toolchain".to_string(),
                                     serde_yaml::Value::String(self.rust_version.clone()),
@@ -185,7 +185,7 @@ impl ToGitHub for RustBinaryPreset {
 
         Ok(GitHubWorkflow {
             name: "CI".to_string(),
-            on: GitHubTriggers::Detailed(HashMap::from([
+            on: GitHubTriggers::Detailed(BTreeMap::from([
                 (
                     "push".to_string(),
                     GitHubTriggerConfig {
@@ -210,9 +210,9 @@ impl ToGitHub for RustBinaryPreset {
 impl ToGitLab for RustBinaryPreset {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::*;
-        use std::collections::HashMap;
+        use std::collections::BTreeMap;
 
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
 
         // Test job
         jobs.insert(
@@ -275,9 +275,9 @@ impl ToGitLab for RustBinaryPreset {
 impl ToCircleCI for RustBinaryPreset {
     fn to_circleci(&self) -> Result<CircleCIConfig> {
         use crate::platforms::circleci::models::*;
-        use std::collections::HashMap;
+        use std::collections::BTreeMap;
 
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
 
         // Test job
         jobs.insert(
@@ -325,7 +325,7 @@ impl ToCircleCI for RustBinaryPreset {
             version: "2.1".to_string(),
             orbs: None,
             jobs,
-            workflows: HashMap::from([(
+            workflows: BTreeMap::from([(
                 "main".to_string(),
                 CircleCIWorkflow {
                     jobs: if self.build_release {

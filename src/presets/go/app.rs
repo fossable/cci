@@ -6,7 +6,7 @@ use crate::platforms::github::models::{
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Preset for Go application projects
 #[derive(Debug, Clone)]
@@ -62,7 +62,7 @@ impl GoAppPresetBuilder {
 
 impl ToGitHub for GoAppPreset {
     fn to_github(&self) -> Result<GitHubWorkflow> {
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
 
         // Test job (always present)
         let test_steps = vec![
@@ -77,7 +77,7 @@ impl ToGitHub for GoAppPreset {
                 name: Some("Setup Go".to_string()),
                 uses: Some("actions/setup-go@v5".to_string()),
                 run: None,
-                with: Some(HashMap::from([(
+                with: Some(BTreeMap::from([(
                     "go-version".to_string(),
                     serde_yaml::Value::String(self.go_version.clone()),
                 )])),
@@ -135,7 +135,7 @@ impl ToGitHub for GoAppPreset {
                             name: Some("Setup Go".to_string()),
                             uses: Some("actions/setup-go@v5".to_string()),
                             run: None,
-                            with: Some(HashMap::from([(
+                            with: Some(BTreeMap::from([(
                                 "go-version".to_string(),
                                 serde_yaml::Value::String(self.go_version.clone()),
                             )])),
@@ -145,7 +145,7 @@ impl ToGitHub for GoAppPreset {
                             name: Some("Run golangci-lint".to_string()),
                             uses: Some("golangci/golangci-lint-action@v3".to_string()),
                             run: None,
-                            with: Some(HashMap::from([(
+                            with: Some(BTreeMap::from([(
                                 "version".to_string(),
                                 serde_yaml::Value::String("latest".to_string()),
                             )])),
@@ -177,7 +177,7 @@ impl ToGitHub for GoAppPreset {
                             name: Some("Setup Go".to_string()),
                             uses: Some("actions/setup-go@v5".to_string()),
                             run: None,
-                            with: Some(HashMap::from([(
+                            with: Some(BTreeMap::from([(
                                 "go-version".to_string(),
                                 serde_yaml::Value::String(self.go_version.clone()),
                             )])),
@@ -187,7 +187,7 @@ impl ToGitHub for GoAppPreset {
                             name: Some("Run gosec".to_string()),
                             uses: Some("securego/gosec@master".to_string()),
                             run: None,
-                            with: Some(HashMap::from([(
+                            with: Some(BTreeMap::from([(
                                 "args".to_string(),
                                 serde_yaml::Value::String("./...".to_string()),
                             )])),
@@ -203,7 +203,7 @@ impl ToGitHub for GoAppPreset {
 
         Ok(GitHubWorkflow {
             name: "CI".to_string(),
-            on: GitHubTriggers::Detailed(HashMap::from([
+            on: GitHubTriggers::Detailed(BTreeMap::from([
                 (
                     "push".to_string(),
                     GitHubTriggerConfig {
@@ -228,9 +228,9 @@ impl ToGitHub for GoAppPreset {
 impl ToGitLab for GoAppPreset {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::*;
-        use std::collections::HashMap;
+        use std::collections::BTreeMap;
 
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
 
         let mut script = vec!["go test -v ./...".to_string()];
 
@@ -273,7 +273,7 @@ impl ToGitLab for GoAppPreset {
 impl ToCircleCI for GoAppPreset {
     fn to_circleci(&self) -> Result<CircleCIConfig> {
         use crate::platforms::circleci::models::*;
-        use std::collections::HashMap;
+        use std::collections::BTreeMap;
 
         let mut steps = vec![CircleCIStep::Simple("checkout".to_string())];
 
@@ -302,7 +302,7 @@ impl ToCircleCI for GoAppPreset {
             },
         });
 
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
         jobs.insert(
             "test".to_string(),
             CircleCIJob {
@@ -318,7 +318,7 @@ impl ToCircleCI for GoAppPreset {
             version: "2.1".to_string(),
             orbs: None,
             jobs,
-            workflows: HashMap::from([(
+            workflows: BTreeMap::from([(
                 "main".to_string(),
                 CircleCIWorkflow {
                     jobs: vec![CircleCIWorkflowJob::Simple("test".to_string())],

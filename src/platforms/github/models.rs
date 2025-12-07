@@ -1,20 +1,20 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct GitHubWorkflow {
     pub name: String,
     pub on: GitHubTriggers,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub env: Option<HashMap<String, String>>,
-    pub jobs: HashMap<String, GitHubJob>,
+    pub env: Option<BTreeMap<String, String>>,
+    pub jobs: BTreeMap<String, GitHubJob>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum GitHubTriggers {
     Simple(Vec<String>),
-    Detailed(HashMap<String, GitHubTriggerConfig>),
+    Detailed(BTreeMap<String, GitHubTriggerConfig>),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -47,9 +47,9 @@ pub struct GitHubStep {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub run: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub with: Option<HashMap<String, serde_yaml::Value>>,
+    pub with: Option<BTreeMap<String, serde_yaml::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub env: Option<HashMap<String, String>>,
+    pub env: Option<BTreeMap<String, String>>,
 }
 
 #[cfg(test)]
@@ -62,7 +62,7 @@ mod tests {
             name: "CI".to_string(),
             on: GitHubTriggers::Simple(vec!["push".to_string()]),
             env: None,
-            jobs: HashMap::from([(
+            jobs: BTreeMap::from([(
                 "test".to_string(),
                 GitHubJob {
                     runs_on: "ubuntu-latest".to_string(),

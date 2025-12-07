@@ -69,6 +69,7 @@ pub fn handle_key_event(state: &mut TuiState, key: KeyEvent) {
                     TreeItem::Preset(preset) => {
                         if state.expanded_presets.contains(&preset) {
                             state.toggle_expand(preset);
+                            state.update_current_item_description();
                         }
                     }
                     TreeItem::Option(preset, _) => {
@@ -80,6 +81,7 @@ pub fn handle_key_event(state: &mut TuiState, key: KeyEvent) {
                                 matches!(item, TreeItem::Preset(p) if *p == preset)
                             }) {
                                 state.tree_cursor = pos;
+                                state.update_current_item_description();
                             }
                         }
                     }
@@ -95,6 +97,7 @@ pub fn handle_key_event(state: &mut TuiState, key: KeyEvent) {
                     TreeItem::Preset(preset) => {
                         if !state.expanded_presets.contains(&preset) {
                             state.toggle_expand(preset);
+                            state.update_current_item_description();
                         }
                     }
                     TreeItem::Option(_, _) => {
@@ -105,16 +108,27 @@ pub fn handle_key_event(state: &mut TuiState, key: KeyEvent) {
             }
         }
 
-        // Navigation
+        // Navigation - J/K for preview scroll when Shift is held
+        KeyCode::Char('K') => {
+            state.scroll_preview_up();
+        }
+
+        KeyCode::Char('J') => {
+            state.scroll_preview_down();
+        }
+
+        // Navigation - regular up/down and lowercase j/k for tree navigation
         KeyCode::Up | KeyCode::Char('k') => {
             if state.tree_cursor > 0 {
                 state.tree_cursor -= 1;
+                state.update_current_item_description();
             }
         }
 
         KeyCode::Down | KeyCode::Char('j') => {
             if state.tree_cursor < state.tree_items.len().saturating_sub(1) {
                 state.tree_cursor += 1;
+                state.update_current_item_description();
             }
         }
 

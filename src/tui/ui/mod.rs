@@ -11,26 +11,37 @@ pub fn render_ui(f: &mut Frame, state: &TuiState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Platform selector bar
+            Constraint::Length(4),  // Information message bar
             Constraint::Min(0),     // Main content
             Constraint::Length(3),  // Footer
         ])
         .split(f.size());
 
-    // Platform selector bar
-    render_platform_bar(f, chunks[0], state);
+    // Information message bar (where platform bar was)
+    render_info_bar(f, chunks[0], state);
 
     // Main content (two panels: tree + preview)
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Percentage(40),  // Left panel (tree)
-            Constraint::Percentage(60),  // Right panel (preview)
+            Constraint::Percentage(60),  // Right panel (preview + platform)
         ])
         .split(chunks[1]);
 
     render_presets_panel(f, main_chunks[0], state);
-    render_preview_panel(f, main_chunks[1], state);
+
+    // Right side: preview above platform selector
+    let right_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(0),     // Preview
+            Constraint::Length(3),  // Platform selector
+        ])
+        .split(main_chunks[1]);
+
+    render_preview_panel(f, right_chunks[0], state);
+    render_platform_bar(f, right_chunks[1], state);
 
     // Footer
     render_footer(f, chunks[2], state);
@@ -39,6 +50,21 @@ pub fn render_ui(f: &mut Frame, state: &TuiState) {
     if state.platform_menu_open {
         render_platform_menu(f, state);
     }
+}
+
+fn render_info_bar(f: &mut Frame, area: Rect, state: &TuiState) {
+    let text = if !state.current_item_description.is_empty() {
+        state.current_item_description.clone()
+    } else {
+        "Navigate with ↑↓/jk, toggle with Space/Enter, expand/collapse with ←→/hl".to_string()
+    };
+
+    let paragraph = Paragraph::new(text)
+        .style(Style::default().fg(Color::Gray))
+        .wrap(Wrap { trim: true })
+        .block(Block::default().borders(Borders::ALL).title(" Information "));
+
+    f.render_widget(paragraph, area);
 }
 
 fn render_platform_bar(f: &mut Frame, area: Rect, state: &TuiState) {
@@ -69,25 +95,49 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &TuiState) {
             }
             TreeItem::Preset(preset) => {
                 let is_expanded = state.expanded_presets.contains(preset);
-                let is_enabled = state.enabled_presets.contains(preset);
+                let has_options_enabled = state.has_any_options_enabled(*preset);
 
                 let expand_icon = if is_expanded { "▼" } else { "▶" };
-                let checkbox = if is_enabled { "[✓]" } else { "[ ]" };
+                let circle_icon = if has_options_enabled { "●" } else { "○" };
 
-                ListItem::new(format!("{} {} {}", expand_icon, checkbox, preset.name()))
-                    .style(if is_enabled {
-                        style.fg(Color::Green).add_modifier(Modifier::BOLD)
-                    } else {
-                        style
-                    })
+                // Create styled line with green circle but normal text
+                let line = if has_options_enabled {
+                    Line::from(vec![
+                        Span::raw(format!("{} ", expand_icon)),
+                        Span::styled(circle_icon, Style::default().fg(Color::Green)),
+                        Span::raw(format!(" {}", preset.name())),
+                    ])
+                } else {
+                    Line::from(format!("{} {} {}", expand_icon, circle_icon, preset.name()))
+                };
+
+                ListItem::new(line).style(style)
             }
             TreeItem::Option(preset, option_index) => {
                 let option_name = preset.options()[*option_index];
                 let is_enabled = state.get_option_value(*preset, *option_index);
-                let checkbox = if is_enabled { "[✓]" } else { "[ ]" };
 
-                ListItem::new(format!("    {} {}", checkbox, option_name))
-                    .style(style)
+                // Check if this is a sub-option (tool selector)
+                let display_text = if option_name.starts_with("  → ") {
+                    // This is a sub-option, show the selected tool
+                    let tool_name = match (preset, *option_index) {
+                        (crate::tui::state::PresetChoice::PythonApp, 1) => {
+                            // Linter tool
+                            state.python_linter_tool.name()
+                        }
+                        (crate::tui::state::PresetChoice::PythonApp, 4) => {
+                            // Formatter tool
+                            state.python_formatter_tool.name()
+                        }
+                        _ => ""
+                    };
+                    format!("    {} ({})", option_name, tool_name)
+                } else {
+                    let checkbox = if is_enabled { "[✓]" } else { "[ ]" };
+                    format!("    {} {}", checkbox, option_name)
+                };
+
+                ListItem::new(display_text).style(style)
             }
         };
 
@@ -110,15 +160,17 @@ fn render_preview_panel(f: &mut Frame, area: Rect, state: &TuiState) {
         Paragraph::new(format!("Error: {}", error))
             .style(Style::default().fg(Color::Red))
             .wrap(Wrap { trim: true })
+            .scroll((state.preview_scroll, 0))
     } else {
         // Apply syntax highlighting to YAML
         let lines = highlight_yaml(&state.yaml_preview);
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
+            .scroll((state.preview_scroll, 0))
     };
 
     let block = Block::default()
-        .title(format!(" Preview - {} ", state.target_platform.name()))
+        .title(format!(" Preview - {} (Shift+J/K to scroll) ", state.target_platform.name()))
         .borders(Borders::ALL);
 
     f.render_widget(preview.block(block), area);
@@ -288,6 +340,8 @@ fn render_footer(f: &mut Frame, area: Rect, state: &TuiState) {
             Span::raw(" toggle | "),
             Span::styled("↑↓/jk", Style::default().fg(Color::Blue)),
             Span::raw(" navigate | "),
+            Span::styled("JK", Style::default().fg(Color::Magenta)),
+            Span::raw(" scroll preview | "),
             Span::styled("p", Style::default().fg(Color::Cyan)),
             Span::raw(" platform | "),
             Span::styled("Ctrl+W", Style::default().fg(Color::Green)),

@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CircleCIConfig {
     pub version: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub orbs: Option<HashMap<String, String>>,
-    pub jobs: HashMap<String, CircleCIJob>,
-    pub workflows: HashMap<String, CircleCIWorkflow>,
+    pub orbs: Option<BTreeMap<String, String>>,
+    pub jobs: BTreeMap<String, CircleCIJob>,
+    pub workflows: BTreeMap<String, CircleCIWorkflow>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -15,7 +15,7 @@ pub struct CircleCIJob {
     pub docker: Vec<CircleCIDocker>,
     pub steps: Vec<CircleCIStep>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub environment: Option<HashMap<String, String>>,
+    pub environment: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -72,7 +72,7 @@ pub enum CircleCIWorkflowJob {
     Simple(String),
     WithRequires {
         #[serde(flatten)]
-        job: HashMap<String, CircleCIJobRequires>,
+        job: BTreeMap<String, CircleCIJobRequires>,
     },
 }
 

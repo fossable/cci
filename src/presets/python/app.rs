@@ -6,7 +6,7 @@ use crate::platforms::github::models::{
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 /// Preset for Python application projects
 #[derive(Debug, Clone)]
@@ -71,7 +71,7 @@ impl PythonAppPresetBuilder {
 
 impl ToGitHub for PythonAppPreset {
     fn to_github(&self) -> Result<GitHubWorkflow> {
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
 
         // Test job (always present)
         let test_steps = vec![
@@ -86,7 +86,7 @@ impl ToGitHub for PythonAppPreset {
                 name: Some("Setup Python".to_string()),
                 uses: Some("actions/setup-python@v5".to_string()),
                 run: None,
-                with: Some(HashMap::from([(
+                with: Some(BTreeMap::from([(
                     "python-version".to_string(),
                     serde_yaml::Value::String(self.python_version.clone()),
                 )])),
@@ -137,7 +137,7 @@ impl ToGitHub for PythonAppPreset {
                             name: Some("Setup Python".to_string()),
                             uses: Some("actions/setup-python@v5".to_string()),
                             run: None,
-                            with: Some(HashMap::from([(
+                            with: Some(BTreeMap::from([(
                                 "python-version".to_string(),
                                 serde_yaml::Value::String(self.python_version.clone()),
                             )])),
@@ -183,7 +183,7 @@ impl ToGitHub for PythonAppPreset {
                             name: Some("Setup Python".to_string()),
                             uses: Some("actions/setup-python@v5".to_string()),
                             run: None,
-                            with: Some(HashMap::from([(
+                            with: Some(BTreeMap::from([(
                                 "python-version".to_string(),
                                 serde_yaml::Value::String(self.python_version.clone()),
                             )])),
@@ -213,7 +213,7 @@ impl ToGitHub for PythonAppPreset {
 
         Ok(GitHubWorkflow {
             name: "CI".to_string(),
-            on: GitHubTriggers::Detailed(HashMap::from([
+            on: GitHubTriggers::Detailed(BTreeMap::from([
                 (
                     "push".to_string(),
                     GitHubTriggerConfig {
@@ -238,9 +238,9 @@ impl ToGitHub for PythonAppPreset {
 impl ToGitLab for PythonAppPreset {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::*;
-        use std::collections::HashMap;
+        use std::collections::BTreeMap;
 
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
 
         let mut script = vec!["pip install -r requirements.txt".to_string(), "pytest".to_string()];
 
@@ -280,7 +280,7 @@ impl ToGitLab for PythonAppPreset {
 impl ToCircleCI for PythonAppPreset {
     fn to_circleci(&self) -> Result<CircleCIConfig> {
         use crate::platforms::circleci::models::*;
-        use std::collections::HashMap;
+        use std::collections::BTreeMap;
 
         let mut steps = vec![
             CircleCIStep::Simple("checkout".to_string()),
@@ -317,7 +317,7 @@ impl ToCircleCI for PythonAppPreset {
             },
         });
 
-        let mut jobs = HashMap::new();
+        let mut jobs = BTreeMap::new();
         jobs.insert(
             "test".to_string(),
             CircleCIJob {
@@ -333,7 +333,7 @@ impl ToCircleCI for PythonAppPreset {
             version: "2.1".to_string(),
             orbs: None,
             jobs,
-            workflows: HashMap::from([(
+            workflows: BTreeMap::from([(
                 "main".to_string(),
                 CircleCIWorkflow {
                     jobs: vec![CircleCIWorkflowJob::Simple("test".to_string())],
