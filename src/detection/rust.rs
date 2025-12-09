@@ -1,5 +1,5 @@
 use super::detector::{DetectionResult, ProjectDetector, ProjectType};
-use crate::error::{Error, Result};
+use crate::error::{cargo_toml_error, Result};
 use cargo_toml::Manifest;
 use std::collections::HashMap;
 use std::fs;
@@ -18,7 +18,7 @@ impl ProjectDetector for RustDetector {
         // Try to parse Cargo.toml
         let contents = fs::read_to_string(&cargo_toml_path)?;
         let manifest = Manifest::from_str(&contents)
-            .map_err(|e| Error::CargoToml(e.to_string()))?;
+            .map_err(|e| cargo_toml_error(e.to_string()))?;
 
         let mut metadata = HashMap::new();
         let mut confidence = 0.9;

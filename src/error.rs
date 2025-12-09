@@ -1,43 +1,36 @@
 use std::path::PathBuf;
-use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = anyhow::Result<T>;
 
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
+// Helper functions for creating specific error types with context
+pub fn cargo_toml_error(msg: impl Into<String>) -> anyhow::Error {
+    anyhow::anyhow!("Cargo.toml parsing error: {}", msg.into())
+}
 
-    #[error("YAML serialization error: {0}")]
-    YamlSerialization(#[from] serde_yaml::Error),
+pub fn detection_failed_error() -> anyhow::Error {
+    anyhow::anyhow!("Project detection failed: no matching project type found")
+}
 
-    #[error("TOML deserialization error: {0}")]
-    TomlDeserialization(#[from] toml::de::Error),
+pub fn unsupported_platform_error(platform: impl Into<String>) -> anyhow::Error {
+    anyhow::anyhow!("Platform '{}' is not supported", platform.into())
+}
 
-    #[error("TOML serialization error: {0}")]
-    TomlSerialization(#[from] toml::ser::Error),
+pub fn preset_not_found_error(preset: impl Into<String>) -> anyhow::Error {
+    anyhow::anyhow!("Preset '{}' not found", preset.into())
+}
 
-    #[error("Cargo.toml parsing error: {0}")]
-    CargoToml(String),
+pub fn file_exists_error(path: PathBuf) -> anyhow::Error {
+    anyhow::anyhow!("File already exists: {}", path.display())
+}
 
-    #[error("Project detection failed: no matching project type found")]
-    DetectionFailed,
+pub fn validation_error(msg: impl Into<String>) -> anyhow::Error {
+    anyhow::anyhow!("Validation error: {}", msg.into())
+}
 
-    #[error("Platform '{0}' is not supported")]
-    UnsupportedPlatform(String),
+pub fn config_error(msg: impl Into<String>) -> anyhow::Error {
+    anyhow::anyhow!("Configuration error: {}", msg.into())
+}
 
-    #[error("Preset '{0}' not found")]
-    PresetNotFound(String),
-
-    #[error("File already exists: {0}")]
-    FileExists(PathBuf),
-
-    #[error("Validation error: {0}")]
-    Validation(String),
-
-    #[error("Configuration error: {0}")]
-    Config(String),
-
-    #[error("User cancelled operation")]
-    UserCancelled,
+pub fn user_cancelled_error() -> anyhow::Error {
+    anyhow::anyhow!("User cancelled operation")
 }

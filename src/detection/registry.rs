@@ -2,7 +2,7 @@ use super::detector::{DetectionResult, ProjectDetector};
 use super::go::GoDetector;
 use super::python::PythonDetector;
 use super::rust::RustDetector;
-use crate::error::{Error, Result};
+use crate::error::{detection_failed_error, Result};
 use std::path::Path;
 
 /// Registry for all project detectors
@@ -44,7 +44,7 @@ impl DetectorRegistry {
         }
 
         if results.is_empty() {
-            return Err(Error::DetectionFailed);
+            return Err(detection_failed_error());
         }
 
         // Return the result with highest confidence

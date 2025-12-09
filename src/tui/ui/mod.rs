@@ -1,3 +1,4 @@
+use crate::tui::config::OptionValue;
 use crate::tui::state::{Platform, TreeItem, TuiState};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -82,62 +83,45 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &TuiState) {
 
     for (i, item) in state.tree_items.iter().enumerate() {
         let is_selected = i == state.tree_cursor;
-        let style = if is_selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-        };
 
         let list_item = match item {
-            TreeItem::Platform => {
-                // Platform is no longer in the tree
-                continue;
-            }
-            TreeItem::Preset(preset) => {
-                let is_expanded = state.expanded_presets.contains(preset);
-                let has_options_enabled = state.has_any_options_enabled(*preset);
-                let matches_project = state.preset_matches_project(*preset);
+            TreeItem::Preset(preset_id) => {
+                let preset = match state.registry.get(preset_id) {
+                    Some(p) => p,
+                    None => continue,
+                };
+
+                let config = state.preset_configs.get(preset_id.as_str());
+                let is_expanded = state.expanded_presets.contains(preset_id);
+                let has_options_enabled = config.map(|c| {
+                    c.values.values().any(|v| matches!(v, OptionValue::Bool(true)))
+                }).unwrap_or(false);
+                let matches_project = preset.matches_project(&state.project_type, &state.working_dir);
 
                 let expand_icon = if is_expanded { "▼" } else { "▶" };
                 let circle_icon = if has_options_enabled { "●" } else { "○" };
 
-                // Create styled line with appropriate colors
-                let line = if has_options_enabled {
-                    let circle_color = if matches_project { Color::Green } else { Color::DarkGray };
-                    let text_color = if is_selected {
-                        Color::Yellow
-                    } else if !matches_project {
-                        Color::DarkGray
-                    } else {
-                        Color::White
-                    };
-
-                    Line::from(vec![
-                        Span::styled(format!("{} ", expand_icon), Style::default().fg(text_color)),
-                        Span::styled(circle_icon, Style::default().fg(circle_color)),
-                        Span::styled(format!(" {}", preset.name()), Style::default().fg(text_color)),
-                    ])
+                let circle_color = if has_options_enabled {
+                    if matches_project { Color::Green } else { Color::DarkGray }
                 } else {
-                    let text_color = if is_selected {
-                        Color::Yellow
-                    } else if !matches_project {
-                        Color::DarkGray
-                    } else {
-                        Color::White
-                    };
-
-                    Line::from(vec![
-                        Span::styled(
-                            format!("{} {} {}", expand_icon, circle_icon, preset.name()),
-                            Style::default().fg(text_color)
-                        )
-                    ])
+                    Color::White
                 };
 
-                // Override the base style to not apply yellow to non-matching presets
-                let item_style = if is_selected && matches_project {
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-                } else if is_selected {
+                let text_color = if is_selected {
+                    Color::Yellow
+                } else if !matches_project {
+                    Color::DarkGray
+                } else {
+                    Color::White
+                };
+
+                let line = Line::from(vec![
+                    Span::styled(format!("{} ", expand_icon), Style::default().fg(text_color)),
+                    Span::styled(circle_icon, Style::default().fg(circle_color)),
+                    Span::styled(format!(" {}", preset.preset_name()), Style::default().fg(text_color)),
+                ]);
+
+                let item_style = if is_selected {
                     Style::default().add_modifier(Modifier::BOLD)
                 } else {
                     Style::default()
@@ -145,40 +129,96 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &TuiState) {
 
                 ListItem::new(line).style(item_style)
             }
-            TreeItem::Option(preset, option_index) => {
-                let option_name = preset.options()[*option_index];
-                let is_enabled = state.get_option_value(*preset, *option_index);
-                let matches_project = state.preset_matches_project(*preset);
-
-                // Check if this is a sub-option (tool selector)
-                let display_text = if option_name.starts_with("  → ") {
-                    // This is a sub-option, show the selected tool
-                    let tool_name = match (preset, *option_index) {
-                        (crate::tui::state::PresetChoice::PythonApp, 1) => {
-                            // Linter tool
-                            state.python_linter_tool.name()
-                        }
-                        (crate::tui::state::PresetChoice::PythonApp, 4) => {
-                            // Formatter tool
-                            state.python_formatter_tool.name()
-                        }
-                        _ => ""
-                    };
-                    format!("    {} ({})", option_name, tool_name)
-                } else {
-                    let checkbox = if is_enabled { "[✓]" } else { "[ ]" };
-                    format!("    {} {}", checkbox, option_name)
+            TreeItem::Feature(preset_id, feature_id) => {
+                let preset = match state.registry.get(preset_id) {
+                    Some(p) => p,
+                    None => continue,
                 };
 
-                // Apply dimmed style for non-matching presets' options
-                let item_style = if is_selected && matches_project {
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-                } else if is_selected {
-                    Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD)
+                let feature = match preset.features().into_iter().find(|f| &f.id == feature_id) {
+                    Some(f) => f,
+                    None => continue,
+                };
+
+                let matches_project = preset.matches_project(&state.project_type, &state.working_dir);
+                let is_expanded = state.expanded_features.contains(&(preset_id.clone(), feature_id.clone()));
+                let expand_icon = if is_expanded { "▼" } else { "▶" };
+
+                let text_color = if is_selected {
+                    Color::Yellow
                 } else if !matches_project {
-                    Style::default().fg(Color::DarkGray)
+                    Color::DarkGray
                 } else {
-                    style
+                    Color::White
+                };
+
+                let line = Line::from(vec![
+                    Span::styled(format!("  {} {}", expand_icon, feature.display_name), Style::default().fg(text_color)),
+                ]);
+
+                let item_style = if is_selected {
+                    Style::default().add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                };
+
+                ListItem::new(line).style(item_style)
+            }
+            TreeItem::Option(preset_id, _feature_id, option_id) => {
+                let preset = match state.registry.get(preset_id) {
+                    Some(p) => p,
+                    None => continue,
+                };
+
+                let config = match state.preset_configs.get(preset_id.as_str()) {
+                    Some(c) => c,
+                    None => continue,
+                };
+
+                let value = match config.get(option_id) {
+                    Some(v) => v,
+                    None => continue,
+                };
+
+                // Find the option metadata to get the display name
+                let features = preset.features();
+                let option_meta = features
+                    .iter()
+                    .flat_map(|f| &f.options)
+                    .find(|o| &o.id == option_id);
+
+                let display_name = option_meta.map(|o| o.display_name.as_str()).unwrap_or(option_id);
+
+                let matches_project = preset.matches_project(&state.project_type, &state.working_dir);
+
+                let display_text = match value {
+                    OptionValue::Bool(b) => {
+                        let checkbox = if *b { "[✓]" } else { "[ ]" };
+                        format!("      {} {}", checkbox, display_name)
+                    }
+                    OptionValue::Enum { selected, .. } => {
+                        format!("      {} ({})", display_name, selected)
+                    }
+                    OptionValue::String(s) => {
+                        format!("      {}: {}", display_name, s)
+                    }
+                    OptionValue::Int(n) => {
+                        format!("      {}: {}", display_name, n)
+                    }
+                };
+
+                let text_color = if is_selected {
+                    Color::Yellow
+                } else if !matches_project {
+                    Color::DarkGray
+                } else {
+                    Color::White
+                };
+
+                let item_style = if is_selected {
+                    Style::default().fg(text_color).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(text_color)
                 };
 
                 ListItem::new(display_text).style(item_style)
