@@ -39,81 +39,23 @@ pub struct DockerPreset {
 }
 
 impl DockerPreset {
-    /// Create a new builder for DockerPreset
-    pub fn builder() -> DockerPresetBuilder {
-        DockerPresetBuilder::default()
-    }
-}
-
-/// Builder for DockerPreset
-#[derive(Default)]
-pub struct DockerPresetBuilder {
-    image_name: Option<String>,
-    registry: Option<DockerRegistry>,
-    dockerfile_path: Option<String>,
-    build_context: Option<String>,
-    build_args: Vec<(String, String)>,
-    enable_cache: bool,
-    push_on_tags_only: bool,
-}
-
-impl DockerPresetBuilder {
-    /// Set the Docker image name (required)
-    pub fn image_name(mut self, name: impl Into<String>) -> Self {
-        self.image_name = Some(name.into());
-        self
-    }
-
-    /// Set the registry to push to
-    pub fn registry(mut self, registry: DockerRegistry) -> Self {
-        self.registry = Some(registry);
-        self
-    }
-
-    /// Set the Dockerfile path
-    pub fn dockerfile_path(mut self, path: impl Into<String>) -> Self {
-        self.dockerfile_path = Some(path.into());
-        self
-    }
-
-    /// Set the Docker build context
-    pub fn build_context(mut self, context: impl Into<String>) -> Self {
-        self.build_context = Some(context.into());
-        self
-    }
-
-    /// Add a build argument
-    pub fn build_arg(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
-        self.build_args.push((key.into(), value.into()));
-        self
-    }
-
-    /// Enable or disable Docker layer caching
-    pub fn cache(mut self, enable: bool) -> Self {
-        self.enable_cache = enable;
-        self
-    }
-
-    /// Only push images on git tags (not on branch pushes)
-    pub fn push_on_tags_only(mut self, enable: bool) -> Self {
-        self.push_on_tags_only = enable;
-        self
-    }
-
-    /// Build the DockerPreset
-    pub fn build(self) -> DockerPreset {
-        DockerPreset {
-            image_name: self
-                .image_name
-                .expect("image_name is required for DockerPreset"),
-            registry: self.registry.unwrap_or(DockerRegistry::None),
-            dockerfile_path: self
-                .dockerfile_path
-                .unwrap_or_else(|| "./Dockerfile".to_string()),
-            build_context: self.build_context.unwrap_or_else(|| ".".to_string()),
-            build_args: self.build_args,
-            enable_cache: self.enable_cache,
-            push_on_tags_only: self.push_on_tags_only,
+    pub fn new(
+        image_name: String,
+        registry: DockerRegistry,
+        dockerfile_path: String,
+        build_context: String,
+        build_args: Vec<(String, String)>,
+        enable_cache: bool,
+        push_on_tags_only: bool,
+    ) -> Self {
+        Self {
+            image_name,
+            registry,
+            dockerfile_path,
+            build_context,
+            build_args,
+            enable_cache,
+            push_on_tags_only,
         }
     }
 }

@@ -395,6 +395,90 @@ impl TuiState {
     pub fn scroll_preview_down(&mut self) {
         self.preview_scroll = self.preview_scroll.saturating_add(1);
     }
+
+    /// Load RON configuration into TUI state
+    pub fn from_ron_file(path: &std::path::Path) -> Result<Self> {
+        use crate::config::{preset_choice_to_config, CciConfig};
+        use anyhow::Context;
+
+        let ron_str = std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read RON file: {}", path.display()))?;
+
+        let ron_config: CciConfig = ron::from_str(&ron_str)
+            .with_context(|| "Failed to parse RON configuration")?;
+
+        let registry = Arc::new(build_registry());
+        let mut preset_configs = HashMap::new();
+
+        for preset_choice in ron_config.presets {
+            let (preset_id, config) = preset_choice_to_config(preset_choice)?;
+            preset_configs.insert(preset_id, config);
+        }
+
+        let mut state = Self {
+            project_type: ProjectType::PythonApp, // Default, doesn't affect RON-loaded config
+            language_version: "stable".to_string(),
+            working_dir: path.parent().unwrap_or(std::path::Path::new(".")).to_path_buf(),
+            target_platform: Platform::GitHub, // Default platform
+            registry,
+            preset_configs,
+            expanded_presets: HashSet::new(),
+            expanded_features: HashSet::new(),
+            tree_items: Vec::new(),
+            tree_cursor: 0,
+            platform_menu_open: false,
+            platform_menu_cursor: 0,
+            preview_scroll: 0,
+            yaml_preview: String::new(),
+            generation_error: None,
+            current_item_description: String::new(),
+            should_quit: false,
+            should_write: false,
+        };
+
+        state.rebuild_tree();
+        state.regenerate_yaml();
+        state.update_current_item_description();
+        Ok(state)
+    }
+
+    /// Export current TUI state to RON configuration
+    pub fn export_to_ron(&self) -> Result<String> {
+        use crate::config::{preset_config_to_choice, CciConfig};
+
+        let mut presets = Vec::new();
+
+        for (preset_id, config) in &self.preset_configs {
+            if self.has_any_options_enabled(config) {
+                let preset_choice = preset_config_to_choice(preset_id, config)?;
+                presets.push(preset_choice);
+            }
+        }
+
+        let ron_config = CciConfig { presets };
+
+        let pretty_config = ron::ser::PrettyConfig::new()
+            .depth_limit(4)
+            .separate_tuple_members(true)
+            .enumerate_arrays(false);
+
+        let ron_str = ron::ser::to_string_pretty(&ron_config, pretty_config)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize to RON: {}", e))?;
+
+        Ok(ron_str)
+    }
+
+    /// Save current state to a RON file
+    pub fn save_to_ron_file(&self, path: &std::path::Path) -> Result<()> {
+        use anyhow::Context;
+
+        let ron_str = self.export_to_ron()?;
+
+        std::fs::write(path, ron_str)
+            .with_context(|| format!("Failed to write RON file: {}", path.display()))?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

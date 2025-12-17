@@ -19,61 +19,19 @@ pub struct RustLibraryPreset {
 }
 
 impl RustLibraryPreset {
-    /// Create a new builder for RustLibraryPreset
-    pub fn builder() -> RustLibraryPresetBuilder {
-        RustLibraryPresetBuilder::default()
-    }
-}
-
-/// Builder for RustLibraryPreset
-#[derive(Default)]
-pub struct RustLibraryPresetBuilder {
-    rust_version: Option<String>,
-    enable_coverage: bool,
-    enable_linter: bool,
-    enable_security_scan: bool,
-    enable_format_check: bool,
-}
-
-impl RustLibraryPresetBuilder {
-    /// Set the Rust toolchain version
-    pub fn rust_version(mut self, version: impl Into<String>) -> Self {
-        self.rust_version = Some(version.into());
-        self
-    }
-
-    /// Enable or disable coverage reporting
-    pub fn coverage(mut self, enable: bool) -> Self {
-        self.enable_coverage = enable;
-        self
-    }
-
-    /// Enable or disable linting with clippy
-    pub fn linter(mut self, enable: bool) -> Self {
-        self.enable_linter = enable;
-        self
-    }
-
-    /// Enable or disable security scanning
-    pub fn security_scan(mut self, enable: bool) -> Self {
-        self.enable_security_scan = enable;
-        self
-    }
-
-    /// Enable or disable format checking with rustfmt
-    pub fn format_check(mut self, enable: bool) -> Self {
-        self.enable_format_check = enable;
-        self
-    }
-
-    /// Build the RustLibraryPreset
-    pub fn build(self) -> RustLibraryPreset {
-        RustLibraryPreset {
-            rust_version: self.rust_version.unwrap_or_else(|| "stable".to_string()),
-            enable_coverage: self.enable_coverage,
-            enable_linter: self.enable_linter,
-            enable_security_scan: self.enable_security_scan,
-            enable_format_check: self.enable_format_check,
+    pub fn new(
+        rust_version: String,
+        enable_coverage: bool,
+        enable_linter: bool,
+        enable_security_scan: bool,
+        enable_format_check: bool,
+    ) -> Self {
+        Self {
+            rust_version,
+            enable_coverage,
+            enable_linter,
+            enable_security_scan,
+            enable_format_check,
         }
     }
 }

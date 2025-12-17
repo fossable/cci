@@ -11,11 +11,16 @@ use std::path::PathBuf;
 
 /// Run the interactive TUI for configuring CI pipelines
 pub fn run() -> Result<()> {
+    run_with_args(".", None)
+}
+
+/// Run the TUI with specific arguments
+pub fn run_with_args(dir: &str, platform: Option<String>) -> Result<()> {
     // Auto-detect project
-    let working_dir = PathBuf::from(".");
+    let working_dir = PathBuf::from(dir);
     let registry = DetectorRegistry::new();
     let detection = registry.detect(&working_dir)?;
 
     // Launch TUI
-    app::TuiApp::new(detection, None)?.run()
+    app::TuiApp::new(detection, platform)?.run()
 }

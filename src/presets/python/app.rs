@@ -80,81 +80,21 @@ pub struct PythonAppPreset {
 }
 
 impl PythonAppPreset {
-    /// Create a new builder for PythonAppPreset
-    pub fn builder() -> PythonAppPresetBuilder {
-        PythonAppPresetBuilder::default()
-    }
-}
-
-/// Builder for PythonAppPreset
-pub struct PythonAppPresetBuilder {
-    python_version: Option<String>,
-    enable_linter: bool,
-    linter_tool: PythonLinterTool,
-    enable_type_check: bool,
-    enable_formatter_check: bool,
-    formatter_tool: PythonFormatterTool,
-}
-
-impl Default for PythonAppPresetBuilder {
-    fn default() -> Self {
+    pub fn new(
+        python_version: String,
+        enable_linter: bool,
+        linter_tool: PythonLinterTool,
+        enable_type_check: bool,
+        enable_formatter_check: bool,
+        formatter_tool: PythonFormatterTool,
+    ) -> Self {
         Self {
-            python_version: None,
-            enable_linter: false,
-            linter_tool: PythonLinterTool::Flake8,
-            enable_type_check: false,
-            enable_formatter_check: false,
-            formatter_tool: PythonFormatterTool::Black,
-        }
-    }
-}
-
-impl PythonAppPresetBuilder {
-    /// Set the Python version
-    pub fn python_version(mut self, version: impl Into<String>) -> Self {
-        self.python_version = Some(version.into());
-        self
-    }
-
-    /// Enable or disable linting
-    pub fn linter(mut self, enable: bool) -> Self {
-        self.enable_linter = enable;
-        self
-    }
-
-    /// Set the linter tool
-    pub fn linter_tool(mut self, tool: PythonLinterTool) -> Self {
-        self.linter_tool = tool;
-        self
-    }
-
-    /// Enable or disable type checking with mypy
-    pub fn type_check(mut self, enable: bool) -> Self {
-        self.enable_type_check = enable;
-        self
-    }
-
-    /// Enable or disable formatter checking
-    pub fn formatter_check(mut self, enable: bool) -> Self {
-        self.enable_formatter_check = enable;
-        self
-    }
-
-    /// Set the formatter tool
-    pub fn formatter_tool(mut self, tool: PythonFormatterTool) -> Self {
-        self.formatter_tool = tool;
-        self
-    }
-
-    /// Build the PythonAppPreset
-    pub fn build(self) -> PythonAppPreset {
-        PythonAppPreset {
-            python_version: self.python_version.unwrap_or_else(|| "3.11".to_string()),
-            enable_linter: self.enable_linter,
-            linter_tool: self.linter_tool,
-            enable_type_check: self.enable_type_check,
-            enable_formatter_check: self.enable_formatter_check,
-            formatter_tool: self.formatter_tool,
+            python_version,
+            enable_linter,
+            linter_tool,
+            enable_type_check,
+            enable_formatter_check,
+            formatter_tool,
         }
     }
 }

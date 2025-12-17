@@ -17,45 +17,11 @@ pub struct GoAppPreset {
 }
 
 impl GoAppPreset {
-    /// Create a new builder for GoAppPreset
-    pub fn builder() -> GoAppPresetBuilder {
-        GoAppPresetBuilder::default()
-    }
-}
-
-/// Builder for GoAppPreset
-#[derive(Default)]
-pub struct GoAppPresetBuilder {
-    go_version: Option<String>,
-    enable_linter: bool,
-    enable_security_scan: bool,
-}
-
-impl GoAppPresetBuilder {
-    /// Set the Go version
-    pub fn go_version(mut self, version: impl Into<String>) -> Self {
-        self.go_version = Some(version.into());
-        self
-    }
-
-    /// Enable or disable linting with golangci-lint
-    pub fn linter(mut self, enable: bool) -> Self {
-        self.enable_linter = enable;
-        self
-    }
-
-    /// Enable or disable security scanning with gosec
-    pub fn security_scan(mut self, enable: bool) -> Self {
-        self.enable_security_scan = enable;
-        self
-    }
-
-    /// Build the GoAppPreset
-    pub fn build(self) -> GoAppPreset {
-        GoAppPreset {
-            go_version: self.go_version.unwrap_or_else(|| "1.21".to_string()),
-            enable_linter: self.enable_linter,
-            enable_security_scan: self.enable_security_scan,
+    pub fn new(go_version: String, enable_linter: bool, enable_security_scan: bool) -> Self {
+        Self {
+            go_version,
+            enable_linter,
+            enable_security_scan,
         }
     }
 }
