@@ -4,7 +4,6 @@ use crate::presets::docker::{DockerPreset, DockerRegistry};
 use crate::traits::{ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
 use crate::tui::config::{FeatureMeta, OptionMeta, OptionValue, PresetConfig, TuiPreset};
 use crate::tui::state::Platform;
-use std::path::PathBuf;
 
 pub struct DockerTuiPreset;
 
@@ -115,12 +114,15 @@ impl TuiPreset for DockerTuiPreset {
             _ => DockerRegistry::None,
         };
 
-        let preset = DockerPreset::builder()
-            .image_name(&image_name)
-            .registry(registry)
-            .cache(config.get_bool("enable_cache"))
-            .push_on_tags_only(config.get_bool("tags_only"))
-            .build();
+        let preset = DockerPreset::new(
+            image_name,
+            registry,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            config.get_bool("enable_cache"),
+            config.get_bool("tags_only"),
+        );
 
         let output: String = match platform {
             Platform::GitHub => {

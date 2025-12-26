@@ -548,9 +548,15 @@ mod tests {
 
     #[test]
     fn test_builder_defaults() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::None,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            false,
+        );
 
         assert_eq!(preset.image_name, "myapp");
         assert_eq!(preset.registry, DockerRegistry::None);
@@ -562,11 +568,15 @@ mod tests {
 
     #[test]
     fn test_builder_with_dockerhub() {
-        let preset = DockerPreset::builder()
-            .image_name("myorg/myapp")
-            .registry(DockerRegistry::DockerHub)
-            .cache(true)
-            .build();
+        let preset = DockerPreset::new(
+            "myorg/myapp".to_string(),
+            DockerRegistry::DockerHub,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            true,
+            false,
+        );
 
         assert_eq!(preset.registry, DockerRegistry::DockerHub);
         assert!(preset.enable_cache);
@@ -574,11 +584,15 @@ mod tests {
 
     #[test]
     fn test_builder_with_github_registry() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .registry(DockerRegistry::GitHubRegistry)
-            .push_on_tags_only(true)
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::GitHubRegistry,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            true,
+        );
 
         assert_eq!(preset.registry, DockerRegistry::GitHubRegistry);
         assert!(preset.push_on_tags_only);
@@ -586,13 +600,18 @@ mod tests {
 
     #[test]
     fn test_builder_with_custom_paths() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .dockerfile_path("./docker/Dockerfile")
-            .build_context("./app")
-            .build_arg("VERSION", "1.0.0")
-            .build_arg("BUILD_DATE", "2024-01-01")
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::None,
+            "./docker/Dockerfile".to_string(),
+            "./app".to_string(),
+            vec![
+                ("VERSION".to_string(), "1.0.0".to_string()),
+                ("BUILD_DATE".to_string(), "2024-01-01".to_string()),
+            ],
+            false,
+            false,
+        );
 
         assert_eq!(preset.dockerfile_path, "./docker/Dockerfile");
         assert_eq!(preset.build_context, "./app");
@@ -601,9 +620,15 @@ mod tests {
 
     #[test]
     fn test_to_github_basic() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::None,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            false,
+        );
 
         let workflow = preset.to_github().unwrap();
 
@@ -619,10 +644,15 @@ mod tests {
 
     #[test]
     fn test_to_github_with_dockerhub() {
-        let preset = DockerPreset::builder()
-            .image_name("myorg/myapp")
-            .registry(DockerRegistry::DockerHub)
-            .build();
+        let preset = DockerPreset::new(
+            "myorg/myapp".to_string(),
+            DockerRegistry::DockerHub,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            false,
+        );
 
         let workflow = preset.to_github().unwrap();
         let job = &workflow.jobs["docker/build"];
@@ -636,10 +666,15 @@ mod tests {
 
     #[test]
     fn test_to_github_with_github_registry() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .registry(DockerRegistry::GitHubRegistry)
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::GitHubRegistry,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            false,
+        );
 
         let workflow = preset.to_github().unwrap();
         let job = &workflow.jobs["docker/build"];
@@ -653,11 +688,15 @@ mod tests {
 
     #[test]
     fn test_to_github_tags_only_trigger() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .registry(DockerRegistry::DockerHub)
-            .push_on_tags_only(true)
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::DockerHub,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            true,
+        );
 
         let workflow = preset.to_github().unwrap();
 
@@ -672,9 +711,15 @@ mod tests {
 
     #[test]
     fn test_to_gitlab_basic() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::None,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            false,
+        );
 
         let config = preset.to_gitlab().unwrap();
 
@@ -684,9 +729,15 @@ mod tests {
 
     #[test]
     fn test_to_circleci_basic() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::None,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            false,
+        );
 
         let config = preset.to_circleci().unwrap();
 
@@ -696,9 +747,15 @@ mod tests {
 
     #[test]
     fn test_to_jenkins_basic() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::None,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            false,
+        );
 
         let config = preset.to_jenkins().unwrap();
 
@@ -709,9 +766,15 @@ mod tests {
 
     #[test]
     fn test_preset_info() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::None,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            false,
+        );
 
         assert_eq!(preset.name(), "docker");
         assert!(!preset.description().is_empty());
@@ -719,9 +782,15 @@ mod tests {
 
     #[test]
     fn test_detectable_github() {
-        let preset = DockerPreset::builder()
-            .image_name("myapp")
-            .build();
+        let preset = DockerPreset::new(
+            "myapp".to_string(),
+            DockerRegistry::None,
+            "./Dockerfile".to_string(),
+            ".".to_string(),
+            vec![],
+            false,
+            false,
+        );
 
         // Create a workflow with docker build action
         let mut jobs = BTreeMap::new();
@@ -752,9 +821,4 @@ mod tests {
         assert!(preset.matches_github(&workflow));
     }
 
-    #[test]
-    #[should_panic(expected = "image_name is required")]
-    fn test_builder_without_image_name() {
-        DockerPreset::builder().build();
-    }
 }

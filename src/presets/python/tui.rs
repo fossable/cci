@@ -115,15 +115,15 @@ impl TuiPreset for PythonAppTuiPreset {
 
         let type_check = config.get_bool("type_check");
 
-        // Build preset using existing builder
-        let preset = PythonAppPreset::builder()
-            .python_version(language_version)
-            .linter(linter)
-            .linter_tool(linter_tool)
-            .type_check(type_check)
-            .formatter_check(formatter)
-            .formatter_tool(formatter_tool)
-            .build();
+        // Build preset using new constructor
+        let preset = PythonAppPreset::new(
+            language_version.to_string(),
+            linter,
+            linter_tool,
+            type_check,
+            formatter,
+            formatter_tool,
+        );
 
         // Generate based on platform
         let output: String = match platform {

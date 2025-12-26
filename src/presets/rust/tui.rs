@@ -79,13 +79,13 @@ impl TuiPreset for RustLibraryTuiPreset {
         platform: Platform,
         language_version: &str,
     ) -> Result<String> {
-        let preset = RustLibraryPreset::builder()
-            .rust_version(language_version)
-            .coverage(config.get_bool("enable_coverage"))
-            .linter(config.get_bool("enable_linter"))
-            .format_check(config.get_bool("enable_formatter"))
-            .security_scan(config.get_bool("enable_security"))
-            .build();
+        let preset = RustLibraryPreset::new(
+            language_version.to_string(),
+            config.get_bool("enable_coverage"),
+            config.get_bool("enable_linter"),
+            config.get_bool("enable_security"),
+            config.get_bool("enable_formatter"),
+        );
 
         let output: String = match platform {
             Platform::GitHub => {
@@ -187,11 +187,13 @@ impl TuiPreset for RustBinaryTuiPreset {
         platform: Platform,
         language_version: &str,
     ) -> Result<String> {
-        let preset = RustBinaryPreset::builder()
-            .rust_version(language_version)
-            .linter(config.get_bool("enable_linter"))
-            .build_release(config.get_bool("build_release"))
-            .build();
+        let preset = RustBinaryPreset::new(
+            language_version.to_string(),
+            config.get_bool("enable_linter"),
+            false, // enable_security_scan (not exposed in TUI)
+            false, // enable_format_check (not exposed in TUI)
+            config.get_bool("build_release"),
+        );
 
         let output: String = match platform {
             Platform::GitHub => {

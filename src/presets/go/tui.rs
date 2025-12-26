@@ -55,11 +55,11 @@ impl TuiPreset for GoAppTuiPreset {
         platform: Platform,
         language_version: &str,
     ) -> Result<String> {
-        let preset = GoAppPreset::builder()
-            .go_version(language_version)
-            .linter(config.get_bool("enable_linter"))
-            .security_scan(config.get_bool("enable_security"))
-            .build();
+        let preset = GoAppPreset::new(
+            language_version.to_string(),
+            config.get_bool("enable_linter"),
+            config.get_bool("enable_security"),
+        );
 
         let output: String = match platform {
             Platform::GitHub => {

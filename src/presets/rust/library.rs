@@ -688,7 +688,13 @@ mod tests {
 
     #[test]
     fn test_builder_defaults() {
-        let preset = RustLibraryPreset::builder().build();
+        let preset = RustLibraryPreset::new(
+            "stable".to_string(),
+            false,
+            false,
+            false,
+            false,
+        );
         assert_eq!(preset.rust_version, "stable");
         assert!(!preset.enable_coverage);
         assert!(!preset.enable_linter);
@@ -698,11 +704,13 @@ mod tests {
 
     #[test]
     fn test_builder_with_options() {
-        let preset = RustLibraryPreset::builder()
-            .rust_version("1.75.0")
-            .coverage(true)
-            .linter(true)
-            .build();
+        let preset = RustLibraryPreset::new(
+            "1.75.0".to_string(),
+            true,
+            true,
+            false,
+            false,
+        );
 
         assert_eq!(preset.rust_version, "1.75.0");
         assert!(preset.enable_coverage);
@@ -711,7 +719,13 @@ mod tests {
 
     #[test]
     fn test_to_github_basic() {
-        let preset = RustLibraryPreset::builder().build();
+        let preset = RustLibraryPreset::new(
+            "stable".to_string(),
+            false,
+            false,
+            false,
+            false,
+        );
         let workflow = preset.to_github().unwrap();
 
         assert_eq!(workflow.name, "CI");
@@ -721,7 +735,13 @@ mod tests {
 
     #[test]
     fn test_to_github_with_lint() {
-        let preset = RustLibraryPreset::builder().linter(true).build();
+        let preset = RustLibraryPreset::new(
+            "stable".to_string(),
+            false,
+            true,
+            false,
+            false,
+        );
         let workflow = preset.to_github().unwrap();
 
         assert!(workflow.jobs.contains_key("rust/test"));
@@ -730,7 +750,13 @@ mod tests {
 
     #[test]
     fn test_preset_info() {
-        let preset = RustLibraryPreset::builder().build();
+        let preset = RustLibraryPreset::new(
+            "stable".to_string(),
+            false,
+            false,
+            false,
+            false,
+        );
         assert_eq!(preset.name(), "rust-library");
         assert!(!preset.description().is_empty());
     }
