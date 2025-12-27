@@ -1,12 +1,17 @@
+use crate::detection::ProjectType;
+use crate::editor::config::{EditorPreset, FeatureMeta, OptionMeta, OptionValue, PresetConfig};
+use crate::editor::state::Platform;
 use crate::error::Result;
 use crate::platforms::circleci::models::CircleCIConfig;
 use crate::platforms::github::models::{
     GitHubJob, GitHubStep, GitHubTriggerConfig, GitHubTriggers, GitHubWorkflow,
 };
 use crate::platforms::gitlab::models::GitLabCI;
+use crate::platforms::helpers::generate_for_platform;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitea, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::BTreeMap;
+use std::path::Path;
 
 /// Preset for Rust library projects
 #[derive(Debug, Clone)]
@@ -32,6 +37,38 @@ impl RustLibraryPreset {
             enable_linter,
             enable_security_scan,
             enable_format_check,
+        }
+    }
+
+    /// Create a new RustLibraryPreset from editor configuration
+    pub fn from_config(config: &PresetConfig, version: &str) -> Self {
+        Self::new(
+            version.to_string(),
+            config.get_bool("enable_coverage"),
+            config.get_bool("enable_linter"),
+            config.get_bool("enable_security"),
+            config.get_bool("enable_formatter"),
+        )
+    }
+
+    /// Constant default instance for registry initialization
+    pub const DEFAULT: Self = Self {
+        rust_version: String::new(),
+        enable_coverage: false,
+        enable_linter: false,
+        enable_security_scan: false,
+        enable_format_check: false,
+    };
+}
+
+impl Default for RustLibraryPreset {
+    fn default() -> Self {
+        Self {
+            rust_version: "stable".to_string(),
+            enable_coverage: false,
+            enable_linter: false,
+            enable_security_scan: false,
+            enable_format_check: false,
         }
     }
 }
@@ -691,6 +728,110 @@ impl PresetInfo for RustLibraryPreset {
 
     fn description(&self) -> &str {
         "CI pipeline for Rust library projects with testing, linting, and optional coverage"
+    }
+}
+
+impl EditorPreset for RustLibraryPreset {
+    fn preset_id(&self) -> &'static str {
+        "rust-library"
+    }
+
+    fn preset_name(&self) -> &'static str {
+        "Rust Library"
+    }
+
+    fn preset_description(&self) -> &'static str {
+        "CI pipeline for Rust library projects with testing, linting, and optional coverage"
+    }
+
+    fn features(&self) -> Vec<FeatureMeta> {
+        vec![
+            FeatureMeta {
+                id: "testing".to_string(),
+                display_name: "Testing".to_string(),
+                description: "Test coverage reporting".to_string(),
+                options: vec![OptionMeta {
+                    id: "enable_coverage".to_string(),
+                    display_name: "Code Coverage".to_string(),
+                    description: "Enable code coverage reporting with tarpaulin".to_string(),
+                    default_value: OptionValue::Bool(true),
+                    depends_on: None,
+                }],
+            },
+            FeatureMeta {
+                id: "linting".to_string(),
+                display_name: "Linting".to_string(),
+                description: "Code quality checks".to_string(),
+                options: vec![OptionMeta {
+                    id: "enable_linter".to_string(),
+                    display_name: "Clippy Linter".to_string(),
+                    description: "Run Clippy linter for code quality".to_string(),
+                    default_value: OptionValue::Bool(true),
+                    depends_on: None,
+                }],
+            },
+            FeatureMeta {
+                id: "formatting".to_string(),
+                display_name: "Formatting".to_string(),
+                description: "Code formatting checks".to_string(),
+                options: vec![OptionMeta {
+                    id: "enable_formatter".to_string(),
+                    display_name: "Rustfmt Check".to_string(),
+                    description: "Check code formatting with rustfmt".to_string(),
+                    default_value: OptionValue::Bool(true),
+                    depends_on: None,
+                }],
+            },
+            FeatureMeta {
+                id: "security".to_string(),
+                display_name: "Security".to_string(),
+                description: "Security vulnerability scanning".to_string(),
+                options: vec![OptionMeta {
+                    id: "enable_security".to_string(),
+                    display_name: "Security Scan".to_string(),
+                    description: "Run cargo-audit for dependency vulnerabilities".to_string(),
+                    default_value: OptionValue::Bool(true),
+                    depends_on: None,
+                }],
+            },
+        ]
+    }
+
+    fn generate(
+        &self,
+        config: &PresetConfig,
+        platform: Platform,
+        language_version: &str,
+    ) -> Result<String> {
+        let preset = Self::from_config(config, language_version);
+        generate_for_platform(&preset, platform)
+    }
+
+    fn matches_project(&self, project_type: &ProjectType, _working_dir: &Path) -> bool {
+        matches!(
+            project_type,
+            ProjectType::RustLibrary | ProjectType::RustWorkspace
+        )
+    }
+
+    fn default_config(&self, detected: bool) -> PresetConfig {
+        let mut config = PresetConfig::new(self.preset_id().to_string());
+
+        for feature in self.features() {
+            for option in feature.options {
+                let value = if detected {
+                    option.default_value.clone()
+                } else {
+                    match option.default_value {
+                        OptionValue::Bool(_) => OptionValue::Bool(false),
+                        other => other,
+                    }
+                };
+                config.set(option.id, value);
+            }
+        }
+
+        config
     }
 }
 

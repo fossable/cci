@@ -1,37 +1,31 @@
 use super::config::EditorPreset;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Global registry of all presets
+///
+/// Uses a simple Vec for storage since we have a small number of presets (~5).
+/// Linear search is acceptable for this scale and simplifies the implementation.
 pub struct PresetRegistry {
-    presets: HashMap<String, Arc<dyn EditorPreset>>,
-    /// Ordered list of preset IDs for consistent iteration
-    order: Vec<String>,
+    presets: Vec<Arc<dyn EditorPreset>>,
 }
 
 impl PresetRegistry {
     pub fn new() -> Self {
         Self {
-            presets: HashMap::new(),
-            order: Vec::new(),
+            presets: Vec::new(),
         }
     }
 
     pub fn register(&mut self, preset: Arc<dyn EditorPreset>) {
-        let id = preset.preset_id().to_string();
-        self.presets.insert(id.clone(), preset);
-        self.order.push(id);
+        self.presets.push(preset);
     }
 
     pub fn get(&self, id: &str) -> Option<&Arc<dyn EditorPreset>> {
-        self.presets.get(id)
+        self.presets.iter().find(|p| p.preset_id() == id)
     }
 
     pub fn all(&self) -> Vec<&Arc<dyn EditorPreset>> {
-        self.order
-            .iter()
-            .filter_map(|id| self.presets.get(id))
-            .collect()
+        self.presets.iter().collect()
     }
 }
 
@@ -40,11 +34,11 @@ pub fn build_registry() -> PresetRegistry {
     let mut registry = PresetRegistry::new();
 
     // Register all editor preset implementations
-    registry.register(Arc::new(crate::presets::rust::RustLibraryEditorPreset));
-    registry.register(Arc::new(crate::presets::rust::RustBinaryEditorPreset));
-    registry.register(Arc::new(crate::presets::python::PythonAppEditorPreset));
-    registry.register(Arc::new(crate::presets::go::GoAppEditorPreset));
-    registry.register(Arc::new(crate::presets::docker::DockerEditorPreset));
+    registry.register(Arc::new(crate::presets::rust::RustLibraryPreset::default()));
+    registry.register(Arc::new(crate::presets::rust::RustBinaryPreset::default()));
+    registry.register(Arc::new(crate::presets::python::PythonAppPreset::default()));
+    registry.register(Arc::new(crate::presets::go::GoAppPreset::default()));
+    registry.register(Arc::new(crate::presets::docker::DockerPreset::default()));
 
     registry
 }

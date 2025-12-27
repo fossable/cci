@@ -158,7 +158,6 @@ pub fn handle_validate(config_path: &str) -> Result<()> {
 pub fn handle_detect(dir: &str) -> Result<()> {
     use crate::detection::DetectorRegistry;
     use crate::editor::registry::build_registry;
-    use crate::detection::ProjectType;
     use std::path::PathBuf;
 
     let working_dir = PathBuf::from(dir);

@@ -1,12 +1,17 @@
+use crate::detection::ProjectType;
+use crate::editor::config::{EditorPreset, FeatureMeta, OptionMeta, OptionValue, PresetConfig};
+use crate::editor::state::Platform;
 use crate::error::Result;
 use crate::platforms::circleci::models::CircleCIConfig;
 use crate::platforms::github::models::{
     GitHubJob, GitHubStep, GitHubTriggerConfig, GitHubTriggers, GitHubWorkflow,
 };
 use crate::platforms::gitlab::models::GitLabCI;
+use crate::platforms::helpers::generate_for_platform;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitea, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::BTreeMap;
+use std::path::Path;
 
 /// Linter tool options for Python
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,6 +100,51 @@ impl PythonAppPreset {
             enable_type_check,
             enable_formatter_check,
             formatter_tool,
+        }
+    }
+
+    /// Create a new PythonAppPreset from editor configuration
+    pub fn from_config(config: &PresetConfig, version: &str) -> Self {
+        let linter_tool = match config.get_enum("linter_tool").as_deref() {
+            Some("ruff") => PythonLinterTool::Ruff,
+            _ => PythonLinterTool::Flake8,
+        };
+
+        let formatter_tool = match config.get_enum("formatter_tool").as_deref() {
+            Some("ruff") => PythonFormatterTool::Ruff,
+            _ => PythonFormatterTool::Black,
+        };
+
+        Self::new(
+            version.to_string(),
+            config.get_bool("enable_linter"),
+            linter_tool,
+            config.get_bool("type_check"),
+            config.get_bool("enable_formatter"),
+            formatter_tool,
+        )
+    }
+
+    /// Constant default instance for registry initialization
+    pub const DEFAULT: Self = Self {
+        python_version: String::new(),
+        enable_linter: false,
+        linter_tool: PythonLinterTool::Flake8,
+        enable_type_check: false,
+        enable_formatter_check: false,
+        formatter_tool: PythonFormatterTool::Black,
+    };
+}
+
+impl Default for PythonAppPreset {
+    fn default() -> Self {
+        Self {
+            python_version: "3.11".to_string(),
+            enable_linter: false,
+            linter_tool: PythonLinterTool::Flake8,
+            enable_type_check: false,
+            enable_formatter_check: false,
+            formatter_tool: PythonFormatterTool::Black,
         }
     }
 }
@@ -492,5 +542,130 @@ impl PresetInfo for PythonAppPreset {
 
     fn description(&self) -> &str {
         "CI pipeline for Python applications with pytest, linting, and type checking"
+    }
+}
+
+impl EditorPreset for PythonAppPreset {
+    fn preset_id(&self) -> &'static str {
+        "python-app"
+    }
+
+    fn preset_name(&self) -> &'static str {
+        "Python App"
+    }
+
+    fn preset_description(&self) -> &'static str {
+        "CI pipeline for Python applications with pytest, linting, and type checking"
+    }
+
+    fn features(&self) -> Vec<FeatureMeta> {
+        vec![
+            FeatureMeta {
+                id: "linting".to_string(),
+                display_name: "Linting".to_string(),
+                description: "Code quality checks with configurable tools".to_string(),
+                options: vec![
+                    OptionMeta {
+                        id: "enable_linter".to_string(),
+                        display_name: "Enable Linter".to_string(),
+                        description: "Run linting checks on code".to_string(),
+                        default_value: OptionValue::Bool(true),
+                        depends_on: None,
+                    },
+                    OptionMeta {
+                        id: "linter_tool".to_string(),
+                        display_name: "Linter Tool".to_string(),
+                        description: "Choose between Flake8 or Ruff for linting".to_string(),
+                        default_value: OptionValue::Enum {
+                            selected: "flake8".to_string(),
+                            variants: vec!["flake8".to_string(), "ruff".to_string()],
+                        },
+                        depends_on: Some("enable_linter".to_string()),
+                    },
+                ],
+            },
+            FeatureMeta {
+                id: "formatting".to_string(),
+                display_name: "Formatting".to_string(),
+                description: "Code formatting checks".to_string(),
+                options: vec![
+                    OptionMeta {
+                        id: "enable_formatter".to_string(),
+                        display_name: "Enable Formatter".to_string(),
+                        description: "Check code formatting compliance".to_string(),
+                        default_value: OptionValue::Bool(true),
+                        depends_on: None,
+                    },
+                    OptionMeta {
+                        id: "formatter_tool".to_string(),
+                        display_name: "Formatter Tool".to_string(),
+                        description: "Choose between Black or Ruff for formatting".to_string(),
+                        default_value: OptionValue::Enum {
+                            selected: "black".to_string(),
+                            variants: vec!["black".to_string(), "ruff".to_string()],
+                        },
+                        depends_on: Some("enable_formatter".to_string()),
+                    },
+                ],
+            },
+            FeatureMeta {
+                id: "testing".to_string(),
+                display_name: "Testing".to_string(),
+                description: "Test execution and type checking".to_string(),
+                options: vec![
+                    OptionMeta {
+                        id: "type_check".to_string(),
+                        display_name: "Type Checking".to_string(),
+                        description: "Enable mypy static type checking".to_string(),
+                        default_value: OptionValue::Bool(true),
+                        depends_on: None,
+                    },
+                    OptionMeta {
+                        id: "build_wheel".to_string(),
+                        display_name: "Build Wheel".to_string(),
+                        description: "Build distributable wheel package".to_string(),
+                        default_value: OptionValue::Bool(false),
+                        depends_on: None,
+                    },
+                ],
+            },
+        ]
+    }
+
+    fn generate(
+        &self,
+        config: &PresetConfig,
+        platform: Platform,
+        language_version: &str,
+    ) -> Result<String> {
+        let preset = Self::from_config(config, language_version);
+        generate_for_platform(&preset, platform)
+    }
+
+    fn matches_project(&self, project_type: &ProjectType, _working_dir: &Path) -> bool {
+        matches!(
+            project_type,
+            ProjectType::PythonApp | ProjectType::PythonLibrary
+        )
+    }
+
+    fn default_config(&self, detected: bool) -> PresetConfig {
+        let mut config = PresetConfig::new(self.preset_id().to_string());
+
+        for feature in self.features() {
+            for option in feature.options {
+                let value = if detected {
+                    option.default_value.clone()
+                } else {
+                    match option.default_value {
+                        OptionValue::Bool(_) => OptionValue::Bool(false),
+                        other => other,
+                    }
+                };
+                config.set(option.id, value);
+            }
+        }
+
+        config
     }
 }
