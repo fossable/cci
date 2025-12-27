@@ -10,8 +10,7 @@ pub struct CciConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PresetChoice {
     Python(PythonConfig),
-    RustLibrary(RustLibraryConfig),
-    RustBinary(RustBinaryConfig),
+    Rust(RustConfig),
     GoApp(GoAppConfig),
     Docker(DockerConfig),
 }
@@ -92,29 +91,14 @@ impl FormatterTool {
 }
 
 // =============================================================================
-// Rust Library Preset Configuration
+// Rust Preset Configuration
 // =============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RustLibraryConfig {
+pub struct RustConfig {
     pub version: String,
     #[serde(default)]
     pub coverage: bool,
-    #[serde(default)]
-    pub linter: bool,
-    #[serde(default)]
-    pub security: bool,
-    #[serde(default)]
-    pub formatter: bool,
-}
-
-// =============================================================================
-// Rust Binary Preset Configuration
-// =============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RustBinaryConfig {
-    pub version: String,
     #[serde(default)]
     pub linter: bool,
     #[serde(default)]

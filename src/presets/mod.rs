@@ -7,4 +7,4 @@ pub mod rust;
 pub use docker::{DockerPreset, DockerRegistry};
 pub use go::GoAppPreset;
 pub use python::{PythonAppPreset, PythonFormatterTool, PythonLinterTool};
-pub use rust::{RustBinaryPreset, RustLibraryPreset};
+pub use rust::RustPreset;

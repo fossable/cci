@@ -1,18 +1,12 @@
 [package]
 name = "cci"
-version = "0.1.0"
+version = "0.0.1"
 edition = "2024"
 authors = ["cilki"]
 description = "Control your CI/CD"
 license = "Unlicense"
 repository = "https://github.com/fossable/cci"
-keywords = [
-  "ci",
-  "continuous-integration",
-  "github-actions",
-  "gitlab-ci",
-  "automation",
-]
+keywords = ["ci", "github-actions", "gitlab-ci", "automation"]
 categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]

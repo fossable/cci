@@ -514,20 +514,16 @@ mod tests {
             })
             .collect();
 
-        assert_eq!(preset_items.len(), 5); // All 5 presets
-        assert!(preset_items.contains(&"rust-library"));
-        assert!(preset_items.contains(&"rust-binary"));
+        assert_eq!(preset_items.len(), 4); // All 4 presets
+        assert!(preset_items.contains(&"rust"));
         assert!(preset_items.contains(&"python-app"));
         assert!(preset_items.contains(&"go-app"));
         assert!(preset_items.contains(&"docker"));
 
-        // But only Rust Library options should be enabled by default
-        let rust_lib_config = state.preset_configs.get("rust-library").unwrap();
-        assert_eq!(rust_lib_config.get_bool("enable_coverage"), true);
-        assert_eq!(rust_lib_config.get_bool("enable_linter"), true);
-
-        let rust_bin_config = state.preset_configs.get("rust-binary").unwrap();
-        assert_eq!(rust_bin_config.get_bool("enable_linter"), false);
+        // But only Rust options should be enabled by default
+        let rust_config = state.preset_configs.get("rust").unwrap();
+        assert_eq!(rust_config.get_bool("enable_coverage"), true);
+        assert_eq!(rust_config.get_bool("enable_linter"), true);
 
         let python_config = state.preset_configs.get("python-app").unwrap();
         assert_eq!(python_config.get_bool("enable_linter"), false);
@@ -545,11 +541,9 @@ mod tests {
 
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        let rust_lib_config = state.preset_configs.get("rust-library").unwrap();
-        assert_eq!(rust_lib_config.get_bool("enable_coverage"), false);
-
-        let rust_bin_config = state.preset_configs.get("rust-binary").unwrap();
-        assert_eq!(rust_bin_config.get_bool("enable_linter"), true);
+        let rust_config = state.preset_configs.get("rust").unwrap();
+        assert_eq!(rust_config.get_bool("enable_linter"), true);
+        assert_eq!(rust_config.get_bool("build_release"), true);
 
         let python_config = state.preset_configs.get("python-app").unwrap();
         assert_eq!(python_config.get_bool("enable_linter"), false);
@@ -567,8 +561,8 @@ mod tests {
 
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        let rust_lib_config = state.preset_configs.get("rust-library").unwrap();
-        assert_eq!(rust_lib_config.get_bool("enable_coverage"), false);
+        let rust_config = state.preset_configs.get("rust").unwrap();
+        assert_eq!(rust_config.get_bool("enable_coverage"), false);
 
         let python_config = state.preset_configs.get("python-app").unwrap();
         assert_eq!(python_config.get_bool("enable_linter"), true);
@@ -690,15 +684,16 @@ mod tests {
 
         let mut state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        // The YAML should be for Rust Library initially
+        // The YAML should be for Rust initially
         assert!(state.yaml_preview.contains("cargo"));
 
-        // Now manually disable Rust Library and enable Python App
+        // Now manually disable Rust and enable Python App
         use crate::editor::config::OptionValue;
-        state.set_option_value("rust-library", "enable_coverage", OptionValue::Bool(false));
-        state.set_option_value("rust-library", "enable_linter", OptionValue::Bool(false));
-        state.set_option_value("rust-library", "enable_formatter", OptionValue::Bool(false));
-        state.set_option_value("rust-library", "enable_security", OptionValue::Bool(false));
+        state.set_option_value("rust", "enable_coverage", OptionValue::Bool(false));
+        state.set_option_value("rust", "enable_linter", OptionValue::Bool(false));
+        state.set_option_value("rust", "enable_formatter", OptionValue::Bool(false));
+        state.set_option_value("rust", "enable_security", OptionValue::Bool(false));
+        state.set_option_value("rust", "build_release", OptionValue::Bool(false));
 
         state.set_option_value("python-app", "enable_linter", OptionValue::Bool(true));
         state.set_option_value("python-app", "enable_formatter", OptionValue::Bool(true));
@@ -722,9 +717,9 @@ mod tests {
 
         let mut state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        // Enable both Rust Library and Python (unusual but allowed)
+        // Enable both Rust and Python (unusual but allowed)
         use crate::editor::config::OptionValue;
-        state.set_option_value("rust-library", "enable_linter", OptionValue::Bool(true));
+        state.set_option_value("rust", "enable_linter", OptionValue::Bool(true));
         state.set_option_value("python-app", "enable_linter", OptionValue::Bool(true));
 
         state.regenerate_yaml();

@@ -10,13 +10,9 @@ pub fn preset_choice_to_config(choice: PresetChoice) -> Result<(String, PresetCo
             let preset_config = python_config_to_preset_config(config)?;
             Ok(("python-app".to_string(), preset_config))
         }
-        PresetChoice::RustLibrary(config) => {
-            let preset_config = rust_library_config_to_preset_config(config)?;
-            Ok(("rust-library".to_string(), preset_config))
-        }
-        PresetChoice::RustBinary(config) => {
-            let preset_config = rust_binary_config_to_preset_config(config)?;
-            Ok(("rust-binary".to_string(), preset_config))
+        PresetChoice::Rust(config) => {
+            let preset_config = rust_config_to_preset_config(config)?;
+            Ok(("rust".to_string(), preset_config))
         }
         PresetChoice::GoApp(config) => {
             let preset_config = go_app_config_to_preset_config(config)?;
@@ -36,13 +32,9 @@ pub fn preset_config_to_choice(preset_id: &str, config: &PresetConfig) -> Result
             let python_config = preset_config_to_python_config(config)?;
             Ok(PresetChoice::Python(python_config))
         }
-        "rust-library" => {
-            let rust_config = preset_config_to_rust_library_config(config)?;
-            Ok(PresetChoice::RustLibrary(rust_config))
-        }
-        "rust-binary" => {
-            let rust_config = preset_config_to_rust_binary_config(config)?;
-            Ok(PresetChoice::RustBinary(rust_config))
+        "rust" => {
+            let rust_config = preset_config_to_rust_config(config)?;
+            Ok(PresetChoice::Rust(rust_config))
         }
         "go-app" => {
             let go_config = preset_config_to_go_app_config(config)?;
@@ -119,43 +111,14 @@ fn preset_config_to_python_config(config: &PresetConfig) -> Result<PythonConfig>
 }
 
 // =============================================================================
-// Rust Library Conversions
+// Rust Conversions
 // =============================================================================
 
-fn rust_library_config_to_preset_config(config: RustLibraryConfig) -> Result<PresetConfig> {
-    let mut preset_config = PresetConfig::new("rust-library".to_string());
+fn rust_config_to_preset_config(config: RustConfig) -> Result<PresetConfig> {
+    let mut preset_config = PresetConfig::new("rust".to_string());
 
     preset_config.set("rust_version".to_string(), OptionValue::String(config.version));
     preset_config.set("enable_coverage".to_string(), OptionValue::Bool(config.coverage));
-    preset_config.set("enable_linter".to_string(), OptionValue::Bool(config.linter));
-    preset_config.set("enable_security".to_string(), OptionValue::Bool(config.security));
-    preset_config.set("enable_formatter".to_string(), OptionValue::Bool(config.formatter));
-
-    Ok(preset_config)
-}
-
-fn preset_config_to_rust_library_config(config: &PresetConfig) -> Result<RustLibraryConfig> {
-    let version = config
-        .get_string("rust_version")
-        .unwrap_or_else(|| "stable".to_string());
-
-    Ok(RustLibraryConfig {
-        version,
-        coverage: config.get_bool("enable_coverage"),
-        linter: config.get_bool("enable_linter"),
-        security: config.get_bool("enable_security"),
-        formatter: config.get_bool("enable_formatter"),
-    })
-}
-
-// =============================================================================
-// Rust Binary Conversions
-// =============================================================================
-
-fn rust_binary_config_to_preset_config(config: RustBinaryConfig) -> Result<PresetConfig> {
-    let mut preset_config = PresetConfig::new("rust-binary".to_string());
-
-    preset_config.set("rust_version".to_string(), OptionValue::String(config.version));
     preset_config.set("enable_linter".to_string(), OptionValue::Bool(config.linter));
     preset_config.set("enable_security".to_string(), OptionValue::Bool(config.security));
     preset_config.set("enable_formatter".to_string(), OptionValue::Bool(config.formatter));
@@ -164,13 +127,14 @@ fn rust_binary_config_to_preset_config(config: RustBinaryConfig) -> Result<Prese
     Ok(preset_config)
 }
 
-fn preset_config_to_rust_binary_config(config: &PresetConfig) -> Result<RustBinaryConfig> {
+fn preset_config_to_rust_config(config: &PresetConfig) -> Result<RustConfig> {
     let version = config
         .get_string("rust_version")
         .unwrap_or_else(|| "stable".to_string());
 
-    Ok(RustBinaryConfig {
+    Ok(RustConfig {
         version,
+        coverage: config.get_bool("enable_coverage"),
         linter: config.get_bool("enable_linter"),
         security: config.get_bool("enable_security"),
         formatter: config.get_bool("enable_formatter"),

@@ -34,8 +34,7 @@ pub fn build_registry() -> PresetRegistry {
     let mut registry = PresetRegistry::new();
 
     // Register all editor preset implementations
-    registry.register(Arc::new(crate::presets::rust::RustLibraryPreset::default()));
-    registry.register(Arc::new(crate::presets::rust::RustBinaryPreset::default()));
+    registry.register(Arc::new(crate::presets::rust::RustPreset::default()));
     registry.register(Arc::new(crate::presets::python::PythonAppPreset::default()));
     registry.register(Arc::new(crate::presets::go::GoAppPreset::default()));
     registry.register(Arc::new(crate::presets::docker::DockerPreset::default()));

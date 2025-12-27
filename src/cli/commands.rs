@@ -143,8 +143,7 @@ pub fn handle_validate(config_path: &str) -> Result<()> {
     for (idx, preset) in config.presets.iter().enumerate() {
         let preset_name = match preset {
             crate::config::PresetChoice::Python(_) => "Python",
-            crate::config::PresetChoice::RustLibrary(_) => "Rust Library",
-            crate::config::PresetChoice::RustBinary(_) => "Rust Binary",
+            crate::config::PresetChoice::Rust(_) => "Rust",
             crate::config::PresetChoice::GoApp(_) => "Go App",
             crate::config::PresetChoice::Docker(_) => "Docker",
         };

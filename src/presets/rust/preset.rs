@@ -13,23 +13,25 @@ use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitea, ToGitHub, ToGit
 use std::collections::BTreeMap;
 use std::path::Path;
 
-/// Preset for Rust library projects
+/// Unified preset for Rust projects (binaries, libraries, and workspaces)
 #[derive(Debug, Clone)]
-pub struct RustLibraryPreset {
+pub struct RustPreset {
     rust_version: String,
     enable_coverage: bool,
     enable_linter: bool,
     enable_security_scan: bool,
     enable_format_check: bool,
+    build_release: bool,
 }
 
-impl RustLibraryPreset {
+impl RustPreset {
     pub fn new(
         rust_version: String,
         enable_coverage: bool,
         enable_linter: bool,
         enable_security_scan: bool,
         enable_format_check: bool,
+        build_release: bool,
     ) -> Self {
         Self {
             rust_version,
@@ -37,10 +39,11 @@ impl RustLibraryPreset {
             enable_linter,
             enable_security_scan,
             enable_format_check,
+            build_release,
         }
     }
 
-    /// Create a new RustLibraryPreset from editor configuration
+    /// Create a new RustPreset from editor configuration
     pub fn from_config(config: &PresetConfig, version: &str) -> Self {
         Self::new(
             version.to_string(),
@@ -48,6 +51,7 @@ impl RustLibraryPreset {
             config.get_bool("enable_linter"),
             config.get_bool("enable_security"),
             config.get_bool("enable_formatter"),
+            config.get_bool("build_release"),
         )
     }
 
@@ -58,10 +62,11 @@ impl RustLibraryPreset {
         enable_linter: false,
         enable_security_scan: false,
         enable_format_check: false,
+        build_release: false,
     };
 }
 
-impl Default for RustLibraryPreset {
+impl Default for RustPreset {
     fn default() -> Self {
         Self {
             rust_version: "stable".to_string(),
@@ -69,11 +74,12 @@ impl Default for RustLibraryPreset {
             enable_linter: false,
             enable_security_scan: false,
             enable_format_check: false,
+            build_release: false,
         }
     }
 }
 
-impl ToGitHub for RustLibraryPreset {
+impl ToGitHub for RustPreset {
     fn to_github(&self) -> Result<GitHubWorkflow> {
         let mut jobs = BTreeMap::new();
 
@@ -131,6 +137,16 @@ impl ToGitHub for RustLibraryPreset {
                 name: Some("Upload coverage to Codecov".to_string()),
                 uses: Some("codecov/codecov-action@v3".to_string()),
                 run: None,
+                with: None,
+                env: None,
+            });
+        }
+
+        if self.build_release {
+            test_steps.push(GitHubStep {
+                name: Some("Build release binary".to_string()),
+                uses: None,
+                run: Some("cargo build --release".to_string()),
                 with: None,
                 env: None,
             });
@@ -293,16 +309,16 @@ impl ToGitHub for RustLibraryPreset {
     }
 }
 
-impl ToGitea for RustLibraryPreset {
+impl ToGitea for RustPreset {
     fn to_gitea(&self) -> Result<crate::platforms::gitea::models::GiteaWorkflow> {
         // Gitea Actions uses the same workflow format as GitHub Actions
         self.to_github()
     }
 }
 
-impl ToGitLab for RustLibraryPreset {
+impl ToGitLab for RustPreset {
     fn to_gitlab(&self) -> Result<GitLabCI> {
-        use crate::platforms::gitlab::models::{GitLabCache, GitLabJob, GitLabOnly};
+        use crate::platforms::gitlab::models::{GitLabArtifacts, GitLabCache, GitLabJob, GitLabOnly};
 
         let mut jobs = BTreeMap::new();
         let mut stages = vec!["test".to_string()];
@@ -317,6 +333,10 @@ impl ToGitLab for RustLibraryPreset {
         if self.enable_coverage {
             test_script.push("cargo install cargo-tarpaulin".to_string());
             test_script.push("cargo tarpaulin --out Xml --all-features".to_string());
+        }
+
+        if self.build_release {
+            stages.push("build".to_string());
         }
 
         jobs.insert(
@@ -336,7 +356,7 @@ impl ToGitLab for RustLibraryPreset {
                     ],
                 }),
                 artifacts: if self.enable_coverage {
-                    Some(crate::platforms::gitlab::models::GitLabArtifacts {
+                    Some(GitLabArtifacts {
                         paths: vec!["cobertura.xml".to_string()],
                         name: Some("coverage".to_string()),
                     })
@@ -350,9 +370,38 @@ impl ToGitLab for RustLibraryPreset {
             },
         );
 
+        // Build job (optional)
+        if self.build_release {
+            jobs.insert(
+                "rust/build".to_string(),
+                GitLabJob {
+                    stage: "build".to_string(),
+                    image: Some(format!("rust:{}", self.rust_version)),
+                    script: vec![
+                        "cargo build --release".to_string(),
+                    ],
+                    before_script: None,
+                    after_script: None,
+                    needs: None,
+                    cache: Some(GitLabCache {
+                        key: "rust-cache".to_string(),
+                        paths: vec!["target/".to_string()],
+                    }),
+                    artifacts: Some(GitLabArtifacts {
+                        paths: vec!["target/release/".to_string()],
+                        name: None,
+                    }),
+                    only: None,
+                    timeout: None,
+                },
+            );
+        }
+
         // Lint job (optional)
         if self.enable_linter {
-            stages.push("lint".to_string());
+            if !stages.contains(&"lint".to_string()) {
+                stages.push("lint".to_string());
+            }
             jobs.insert(
                 "rust/lint".to_string(),
                 GitLabJob {
@@ -446,7 +495,7 @@ impl ToGitLab for RustLibraryPreset {
     }
 }
 
-impl ToCircleCI for RustLibraryPreset {
+impl ToCircleCI for RustPreset {
     fn to_circleci(&self) -> Result<CircleCIConfig> {
         use crate::platforms::circleci::models::*;
 
@@ -492,6 +541,15 @@ impl ToCircleCI for RustLibraryPreset {
                 run: CircleCIRun::Detailed {
                     name: "Generate coverage".to_string(),
                     command: "cargo tarpaulin --out Xml --all-features".to_string(),
+                },
+            });
+        }
+
+        if self.build_release {
+            test_steps.push(CircleCIStep::Command {
+                run: CircleCIRun::Detailed {
+                    name: "Build release".to_string(),
+                    command: "cargo build --release".to_string(),
                 },
             });
         }
@@ -600,7 +658,7 @@ impl ToCircleCI for RustLibraryPreset {
     }
 }
 
-impl ToJenkins for RustLibraryPreset {
+impl ToJenkins for RustPreset {
     fn to_jenkins(&self) -> Result<JenkinsConfig> {
         use crate::platforms::jenkins::models::JenkinsStage;
 
@@ -619,6 +677,10 @@ impl ToJenkins for RustLibraryPreset {
         if self.enable_coverage {
             test_steps.push("cargo install cargo-tarpaulin".to_string());
             test_steps.push("cargo tarpaulin --out Xml --all-features".to_string());
+        }
+
+        if self.build_release {
+            test_steps.push("cargo build --release".to_string());
         }
 
         stages.push(JenkinsStage {
@@ -675,7 +737,7 @@ impl ToJenkins for RustLibraryPreset {
     }
 }
 
-impl Detectable for RustLibraryPreset {
+impl Detectable for RustPreset {
     fn matches_github(&self, workflow: &GitHubWorkflow) -> bool {
         // Check for Rust toolchain setup
         let has_rust_toolchain = workflow.jobs.values().any(|job| {
@@ -706,42 +768,39 @@ impl Detectable for RustLibraryPreset {
     }
 
     fn matches_gitlab(&self, _config: &GitLabCI) -> bool {
-        // TODO: Implement GitLab detection
         false
     }
 
     fn matches_circleci(&self, _config: &CircleCIConfig) -> bool {
-        // TODO: Implement CircleCI detection
         false
     }
 
-    fn matches_jenkins(&self, _pipeline: &JenkinsConfig) -> bool {
-        // TODO: Implement Jenkins detection
+    fn matches_jenkins(&self, _config: &JenkinsConfig) -> bool {
         false
     }
 }
 
-impl PresetInfo for RustLibraryPreset {
+impl PresetInfo for RustPreset {
     fn name(&self) -> &str {
-        "rust-library"
+        "rust"
     }
 
     fn description(&self) -> &str {
-        "CI pipeline for Rust library projects with testing, linting, and optional coverage"
+        "CI pipeline for Rust projects (binaries, libraries, and workspaces)"
     }
 }
 
-impl EditorPreset for RustLibraryPreset {
+impl EditorPreset for RustPreset {
     fn preset_id(&self) -> &'static str {
-        "rust-library"
+        "rust"
     }
 
     fn preset_name(&self) -> &'static str {
-        "Rust Library"
+        "Rust"
     }
 
     fn preset_description(&self) -> &'static str {
-        "CI pipeline for Rust library projects with testing, linting, and optional coverage"
+        "CI pipeline for Rust projects (binaries, libraries, and workspaces)"
     }
 
     fn features(&self) -> Vec<FeatureMeta> {
@@ -794,6 +853,18 @@ impl EditorPreset for RustLibraryPreset {
                     depends_on: None,
                 }],
             },
+            FeatureMeta {
+                id: "building".to_string(),
+                display_name: "Building".to_string(),
+                description: "Release binary builds".to_string(),
+                options: vec![OptionMeta {
+                    id: "build_release".to_string(),
+                    display_name: "Build Release".to_string(),
+                    description: "Build optimized release binary in CI".to_string(),
+                    default_value: OptionValue::Bool(true),
+                    depends_on: None,
+                }],
+            },
         ]
     }
 
@@ -810,7 +881,7 @@ impl EditorPreset for RustLibraryPreset {
     fn matches_project(&self, project_type: &ProjectType, _working_dir: &Path) -> bool {
         matches!(
             project_type,
-            ProjectType::RustLibrary | ProjectType::RustWorkspace
+            ProjectType::RustBinary | ProjectType::RustLibrary | ProjectType::RustWorkspace
         )
     }
 
@@ -840,40 +911,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_builder_defaults() {
-        let preset = RustLibraryPreset::new(
-            "stable".to_string(),
-            false,
-            false,
-            false,
-            false,
-        );
+    fn test_default() {
+        let preset = RustPreset::default();
         assert_eq!(preset.rust_version, "stable");
         assert!(!preset.enable_coverage);
         assert!(!preset.enable_linter);
         assert!(!preset.enable_security_scan);
         assert!(!preset.enable_format_check);
+        assert!(!preset.build_release);
     }
 
     #[test]
-    fn test_builder_with_options() {
-        let preset = RustLibraryPreset::new(
+    fn test_with_options() {
+        let preset = RustPreset::new(
             "1.75.0".to_string(),
             true,
             true,
             false,
             false,
+            true,
         );
 
         assert_eq!(preset.rust_version, "1.75.0");
         assert!(preset.enable_coverage);
         assert!(preset.enable_linter);
+        assert!(preset.build_release);
     }
 
     #[test]
     fn test_to_github_basic() {
-        let preset = RustLibraryPreset::new(
+        let preset = RustPreset::new(
             "stable".to_string(),
+            false,
             false,
             false,
             false,
@@ -888,10 +957,11 @@ mod tests {
 
     #[test]
     fn test_to_github_with_lint() {
-        let preset = RustLibraryPreset::new(
+        let preset = RustPreset::new(
             "stable".to_string(),
             false,
             true,
+            false,
             false,
             false,
         );
@@ -903,14 +973,8 @@ mod tests {
 
     #[test]
     fn test_preset_info() {
-        let preset = RustLibraryPreset::new(
-            "stable".to_string(),
-            false,
-            false,
-            false,
-            false,
-        );
-        assert_eq!(preset.name(), "rust-library");
+        let preset = RustPreset::default();
+        assert_eq!(preset.name(), "rust");
         assert!(!preset.description().is_empty());
     }
 }

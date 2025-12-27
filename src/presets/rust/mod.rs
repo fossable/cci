@@ -1,5 +1,3 @@
-mod binary;
-mod library;
+mod preset;
 
-pub use binary::RustBinaryPreset;
-pub use library::RustLibraryPreset;
+pub use preset::RustPreset;
