@@ -51,6 +51,10 @@ impl MultiPresetGenerator {
                 // For GitHub, create separate workflow files per preset
                 PathBuf::from(format!(".github/workflows/{}.yml", preset_id))
             }
+            Platform::Gitea => {
+                // For Gitea, create separate workflow files per preset (same structure as GitHub)
+                PathBuf::from(format!(".gitea/workflows/{}.yml", preset_id))
+            }
             Platform::GitLab => {
                 // GitLab uses a single file - for multiple presets, we need to merge
                 // For now, we'll use the preset ID as a suffix if there are multiple

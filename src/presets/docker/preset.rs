@@ -5,7 +5,7 @@ use crate::platforms::github::models::{
 };
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
-use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
+use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitea, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::BTreeMap;
 
 /// Container registry options for Docker image pushing
@@ -271,6 +271,13 @@ impl ToGitHub for DockerPreset {
     }
 }
 
+impl ToGitea for DockerPreset {
+    fn to_gitea(&self) -> Result<crate::platforms::gitea::models::GiteaWorkflow> {
+        // Gitea Actions uses the same workflow format as GitHub Actions
+        self.to_github()
+    }
+}
+
 impl ToGitLab for DockerPreset {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::*;
@@ -493,6 +500,11 @@ impl Detectable for DockerPreset {
         });
 
         has_docker_build || has_docker_commands
+    }
+
+    fn matches_gitea(&self, workflow: &crate::platforms::gitea::models::GiteaWorkflow) -> bool {
+        // Gitea Actions uses the same workflow format as GitHub Actions
+        self.matches_github(workflow)
     }
 
     fn matches_gitlab(&self, config: &GitLabCI) -> bool {

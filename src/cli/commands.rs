@@ -34,6 +34,7 @@ pub fn handle_generate(config_path: &str, platform_arg: Option<String>, force: b
     let platform = if let Some(p) = platform_arg {
         match p.to_lowercase().as_str() {
             "github" => Platform::GitHub,
+            "gitea" => Platform::Gitea,
             "gitlab" => Platform::GitLab,
             "circleci" => Platform::CircleCI,
             "jenkins" => Platform::Jenkins,
@@ -148,6 +149,124 @@ pub fn handle_validate(config_path: &str) -> Result<()> {
             crate::config::PresetChoice::Docker(_) => "Docker",
         };
         println!("    {}. {}", idx + 1, preset_name);
+    }
+
+    Ok(())
+}
+
+/// Handle the detect command
+pub fn handle_detect(dir: &str) -> Result<()> {
+    use crate::detection::DetectorRegistry;
+    use crate::editor::registry::build_registry;
+    use crate::detection::ProjectType;
+    use std::path::PathBuf;
+
+    let working_dir = PathBuf::from(dir);
+
+    println!("{}", "Detecting project type...".cyan().bold());
+    println!();
+
+    // 1. Detect project type
+    let detector_registry = DetectorRegistry::new();
+    let detection = match detector_registry.detect(&working_dir) {
+        Ok(d) => d,
+        Err(_) => {
+            println!("{}", "✗ No project type detected".red().bold());
+            println!();
+            println!("This directory doesn't appear to contain a recognized project type.");
+            println!("Supported project types:");
+            println!("  • Rust (Cargo.toml)");
+            println!("  • Python (pyproject.toml, setup.py, requirements.txt)");
+            println!("  • Go (go.mod)");
+            println!("  • Docker (Dockerfile, docker-compose.yml)");
+            return Ok(());
+        }
+    };
+
+    // 2. Display project type
+    println!("{} {}", "✓ Project Type:".green().bold(), detection.project_type);
+
+    if let Some(version) = &detection.language_version {
+        println!("  {} {}", "Language Version:".dimmed(), version);
+    }
+
+    // 3. Display metadata if any
+    if !detection.metadata.is_empty() {
+        println!();
+        println!("{}", "Metadata:".cyan().bold());
+        for (key, value) in &detection.metadata {
+            println!("  {} {}", format!("{}:", key).dimmed(), value);
+        }
+    }
+
+    // 4. Check for existing CI files
+    println!();
+    println!("{}", "Checking for existing CI configurations...".cyan().bold());
+
+    let ci_files = vec![
+        (".github/workflows", "GitHub Actions"),
+        (".gitea/workflows", "Gitea Actions"),
+        (".gitlab-ci.yml", "GitLab CI"),
+        (".circleci/config.yml", "CircleCI"),
+        ("Jenkinsfile", "Jenkins"),
+    ];
+
+    let mut found_ci = false;
+    for (path, platform) in ci_files {
+        let full_path = working_dir.join(path);
+        if full_path.exists() {
+            println!("  {} {}", "✓".green(), platform);
+            found_ci = true;
+        }
+    }
+
+    if !found_ci {
+        println!("  {} No existing CI configurations found", "ℹ".blue());
+    }
+
+    // 5. Show matching presets
+    println!();
+    println!("{}", "Matching presets for this project:".cyan().bold());
+
+    let registry = build_registry();
+    let mut matching_presets = Vec::new();
+    let mut available_presets = Vec::new();
+
+    for preset in registry.all() {
+        if preset.matches_project(&detection.project_type, &working_dir) {
+            matching_presets.push(preset);
+        } else {
+            available_presets.push(preset);
+        }
+    }
+
+    if matching_presets.is_empty() {
+        println!("  {} No presets match this project type", "ℹ".blue());
+    } else {
+        for preset in &matching_presets {
+            println!("  {} {}", "✓".green().bold(), preset.preset_name());
+            println!("    {}", preset.preset_description().dimmed());
+        }
+    }
+
+    // 6. Show other available presets
+    if !available_presets.is_empty() {
+        println!();
+        println!("{}", "Other available presets:".dimmed());
+        for preset in &available_presets {
+            println!("  {} {}", "○".dimmed(), preset.preset_name().dimmed());
+            println!("    {}", preset.preset_description().dimmed());
+        }
+    }
+
+    // 7. Suggest next steps
+    println!();
+    println!("{}", "Next steps:".cyan().bold());
+    if matching_presets.is_empty() {
+        println!("  • Run {} to configure CI for this project", "cci editor".yellow());
+    } else {
+        println!("  • Run {} to interactively configure CI", "cci editor".yellow());
+        println!("  • Or create a {} file and run {}", "cci.ron".yellow(), "cci generate".yellow());
     }
 
     Ok(())

@@ -1,5 +1,6 @@
 use crate::error::Result;
 use crate::platforms::circleci::models::CircleCIConfig;
+use crate::platforms::gitea::models::GiteaWorkflow;
 use crate::platforms::github::models::GitHubWorkflow;
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
@@ -7,6 +8,11 @@ use crate::platforms::jenkins::models::JenkinsConfig;
 /// Trait for converting a preset to GitHub Actions workflow
 pub trait ToGitHub {
     fn to_github(&self) -> Result<GitHubWorkflow>;
+}
+
+/// Trait for converting a preset to Gitea Actions workflow
+pub trait ToGitea {
+    fn to_gitea(&self) -> Result<GiteaWorkflow>;
 }
 
 /// Trait for converting a preset to GitLab CI config
@@ -28,6 +34,9 @@ pub trait ToJenkins {
 pub trait Detectable {
     /// Check if this preset matches a GitHub Actions workflow
     fn matches_github(&self, workflow: &GitHubWorkflow) -> bool;
+
+    /// Check if this preset matches a Gitea Actions workflow
+    fn matches_gitea(&self, workflow: &GiteaWorkflow) -> bool;
 
     /// Check if this preset matches a GitLab CI config
     fn matches_gitlab(&self, config: &GitLabCI) -> bool;

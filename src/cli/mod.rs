@@ -41,4 +41,11 @@ pub enum Commands {
         #[arg(short, long, default_value = ".")]
         dir: String,
     },
+
+    /// Detect project type and matching presets
+    Detect {
+        /// Project directory
+        #[arg(short, long, default_value = ".")]
+        dir: String,
+    },
 }

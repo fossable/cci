@@ -5,7 +5,7 @@ use crate::platforms::github::models::{
 };
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
-use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
+use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitea, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::BTreeMap;
 
 /// Preset for Rust library projects
@@ -253,6 +253,13 @@ impl ToGitHub for RustLibraryPreset {
             env: None,
             jobs,
         })
+    }
+}
+
+impl ToGitea for RustLibraryPreset {
+    fn to_gitea(&self) -> Result<crate::platforms::gitea::models::GiteaWorkflow> {
+        // Gitea Actions uses the same workflow format as GitHub Actions
+        self.to_github()
     }
 }
 
@@ -654,6 +661,11 @@ impl Detectable for RustLibraryPreset {
         });
 
         has_rust_toolchain && has_cargo_test
+    }
+
+    fn matches_gitea(&self, workflow: &crate::platforms::gitea::models::GiteaWorkflow) -> bool {
+        // Gitea Actions uses the same workflow format as GitHub Actions
+        self.matches_github(workflow)
     }
 
     fn matches_gitlab(&self, _config: &GitLabCI) -> bool {

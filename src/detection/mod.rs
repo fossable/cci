@@ -1,3 +1,4 @@
+mod docker;
 mod go;
 mod preset_detector;
 mod python;
@@ -26,6 +27,7 @@ pub enum ProjectType {
     PythonLibrary,
     GoApp,
     GoLibrary,
+    DockerImage,
 }
 
 impl std::fmt::Display for ProjectType {
@@ -38,6 +40,7 @@ impl std::fmt::Display for ProjectType {
             ProjectType::PythonLibrary => write!(f, "Python Library"),
             ProjectType::GoApp => write!(f, "Go Application"),
             ProjectType::GoLibrary => write!(f, "Go Library"),
+            ProjectType::DockerImage => write!(f, "Docker Image"),
         }
     }
 }
@@ -51,6 +54,7 @@ pub trait ProjectDetector: Send + Sync {
     fn name(&self) -> &str;
 }
 
+pub use docker::DockerDetector;
 pub use go::GoDetector;
 pub use preset_detector::PresetDetector;
 pub use python::PythonDetector;

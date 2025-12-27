@@ -3,7 +3,7 @@ use crate::editor::config::{EditorPreset, FeatureMeta, OptionMeta, OptionValue, 
 use crate::editor::state::Platform;
 use crate::error::Result;
 use crate::presets::go::GoAppPreset;
-use crate::traits::{ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
+use crate::traits::{ToCircleCI, ToGitea, ToGitHub, ToGitLab, ToJenkins};
 
 pub struct GoAppEditorPreset;
 
@@ -64,6 +64,10 @@ impl EditorPreset for GoAppEditorPreset {
         let output: String = match platform {
             Platform::GitHub => {
                 let workflow = preset.to_github()?;
+                serde_yaml::to_string(&workflow)?
+            }
+            Platform::Gitea => {
+                let workflow = preset.to_gitea()?;
                 serde_yaml::to_string(&workflow)?
             }
             Platform::GitLab => {

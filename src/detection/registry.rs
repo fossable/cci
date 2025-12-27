@@ -1,4 +1,5 @@
 use super::{DetectionResult, ProjectDetector};
+use super::docker::DockerDetector;
 use super::go::GoDetector;
 use super::python::PythonDetector;
 use super::rust::RustDetector;
@@ -18,9 +19,11 @@ impl DetectorRegistry {
         };
 
         // Register built-in detectors
+        // Order matters: more specific detectors first
         registry.register(Box::new(RustDetector));
         registry.register(Box::new(PythonDetector));
         registry.register(Box::new(GoDetector));
+        registry.register(Box::new(DockerDetector));
 
         registry
     }

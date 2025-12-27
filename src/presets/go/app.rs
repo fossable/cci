@@ -5,7 +5,7 @@ use crate::platforms::github::models::{
 };
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
-use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
+use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitea, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::BTreeMap;
 
 /// Preset for Go application projects
@@ -191,6 +191,13 @@ impl ToGitHub for GoAppPreset {
     }
 }
 
+impl ToGitea for GoAppPreset {
+    fn to_gitea(&self) -> Result<crate::platforms::gitea::models::GiteaWorkflow> {
+        // Gitea Actions uses the same workflow format as GitHub Actions
+        self.to_github()
+    }
+}
+
 impl ToGitLab for GoAppPreset {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::*;
@@ -342,6 +349,11 @@ impl Detectable for GoAppPreset {
         });
 
         has_go_setup && has_go_test
+    }
+
+    fn matches_gitea(&self, workflow: &crate::platforms::gitea::models::GiteaWorkflow) -> bool {
+        // Gitea Actions uses the same workflow format as GitHub Actions
+        self.matches_github(workflow)
     }
 
     fn matches_gitlab(&self, _config: &GitLabCI) -> bool {

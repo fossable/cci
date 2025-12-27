@@ -5,7 +5,7 @@ use crate::platforms::github::models::{
 };
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
-use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
+use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitea, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::BTreeMap;
 
 /// Linter tool options for Python
@@ -268,6 +268,13 @@ impl ToGitHub for PythonAppPreset {
     }
 }
 
+impl ToGitea for PythonAppPreset {
+    fn to_gitea(&self) -> Result<crate::platforms::gitea::models::GiteaWorkflow> {
+        // Gitea Actions uses the same workflow format as GitHub Actions
+        self.to_github()
+    }
+}
+
 impl ToGitLab for PythonAppPreset {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::*;
@@ -460,7 +467,12 @@ impl Detectable for PythonAppPreset {
         has_python_setup && has_pytest
     }
 
-    fn matches_gitlab(&self, _config: &GitLabCI) -> bool {
+    fn matches_gitea(&self, workflow: &crate::platforms::gitea::models::GiteaWorkflow) -> bool {
+        // Gitea Actions uses the same workflow format as GitHub Actions
+        self.matches_github(workflow)
+    }
+
+    fn matches_gitlab(&self, _config: &GitLabCI) -> bool{
         false
     }
 
