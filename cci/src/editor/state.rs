@@ -416,7 +416,7 @@ impl EditorState {
         let mut preset_configs = HashMap::new();
 
         for preset_choice in ron_config.presets {
-            let (preset_id, config) = preset_choice_to_config(preset_choice)?;
+            let (preset_id, config) = preset_choice_to_config(&preset_choice);
             preset_configs.insert(preset_id, config);
         }
 
@@ -455,7 +455,7 @@ impl EditorState {
 
         for (preset_id, config) in &self.preset_configs {
             if self.has_any_options_enabled(config) {
-                let preset_choice = preset_config_to_choice(preset_id, config)?;
+                let preset_choice = preset_config_to_choice(preset_id, config);
                 presets.push(preset_choice);
             }
         }
@@ -615,13 +615,12 @@ mod tests {
     }
 
     #[test]
-    fn test_docker_enabled_only_with_dockerfile() {
+    fn test_docker_enabled_with_docker_project_type() {
         let dir = tempdir().unwrap();
-        fs::write(dir.path().join("Dockerfile"), "FROM rust:latest").unwrap();
 
         let detection = DetectionResult {
-            project_type: ProjectType::RustLibrary,
-            language_version: Some("stable".to_string()),
+            project_type: ProjectType::DockerImage,
+            language_version: None,
             metadata: HashMap::new(),
         };
 
@@ -632,7 +631,7 @@ mod tests {
     }
 
     #[test]
-    fn test_docker_disabled_without_dockerfile() {
+    fn test_docker_disabled_for_non_docker_project() {
         let dir = tempdir().unwrap();
 
         let detection = DetectionResult {
@@ -644,32 +643,30 @@ mod tests {
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         let docker_config = state.preset_configs.get("docker").unwrap();
+        // Docker preset is available but not enabled by default for non-Docker projects
         assert_eq!(docker_config.get_bool("enable_cache"), false);
     }
 
     #[test]
-    fn test_detects_various_dockerfile_names() {
-        let dockerfile_names = ["Dockerfile", "Dockerfile.dev", "Dockerfile.prod", "dockerfile"];
+    fn test_docker_preset_available_for_all_projects() {
+        // Docker preset should be available (but not enabled) for all project types
+        // Users can manually enable it if they want to add Docker to their project
+        let dir = tempdir().unwrap();
 
-        for dockerfile_name in &dockerfile_names {
-            let dir = tempdir().unwrap();
-            fs::write(dir.path().join(dockerfile_name), "FROM rust:latest").unwrap();
+        let detection = DetectionResult {
+            project_type: ProjectType::RustLibrary,
+            language_version: Some("stable".to_string()),
+            metadata: HashMap::new(),
+        };
 
-            let detection = DetectionResult {
-                project_type: ProjectType::RustLibrary,
-                language_version: Some("stable".to_string()),
-                    metadata: HashMap::new(),
-            };
+        let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-            let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        // Docker config should exist
+        let docker_config = state.preset_configs.get("docker");
+        assert!(docker_config.is_some(), "Docker preset should be available");
 
-            let docker_config = state.preset_configs.get("docker").unwrap();
-            assert!(
-                docker_config.get_bool("enable_cache"),
-                "Docker should be enabled for {}",
-                dockerfile_name
-            );
-        }
+        // But not enabled by default
+        assert_eq!(docker_config.unwrap().get_bool("enable_cache"), false);
     }
 
     #[test]

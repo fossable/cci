@@ -1,60 +1,59 @@
-use crate::detection::ProjectType;
-use crate::editor::config::{EditorPreset, FeatureMeta, OptionMeta, OptionValue, PresetConfig};
-use crate::editor::state::Platform;
+use cci_macros::Preset;
 use crate::error::Result;
 use crate::platforms::circleci::models::CircleCIConfig;
 use crate::platforms::github::models::{
     GitHubJob, GitHubStep, GitHubTriggerConfig, GitHubTriggers, GitHubWorkflow,
 };
 use crate::platforms::gitlab::models::GitLabCI;
-use crate::platforms::helpers::generate_for_platform;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitea, ToGitHub, ToGitLab, ToJenkins};
 use std::collections::BTreeMap;
-use std::path::Path;
 
 /// Preset for Go application projects
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Preset)]
+#[preset(
+    id = "go-app",
+    name = "Go App",
+    description = "CI pipeline for Go applications with testing and linting",
+    matches = "GoApp | GoLibrary"
+)]
 pub struct GoAppPreset {
+    #[preset_field(
+        ron_field = "version",
+        default = "\"1.21\".to_string()",
+        hidden = true
+    )]
     go_version: String,
+
+    #[preset_field(
+        feature = "linting",
+        feature_display = "Linting",
+        feature_description = "Code quality checks with golangci-lint",
+        display = "Enable Linter",
+        description = "Run golangci-lint for code quality",
+        default = "true"
+    )]
     enable_linter: bool,
+
+    #[preset_field(
+        id = "enable_security",
+        feature = "security",
+        feature_display = "Security",
+        feature_description = "Security vulnerability scanning",
+        display = "Security Scan",
+        description = "Run gosec for security vulnerabilities",
+        default = "true"
+    )]
     enable_security_scan: bool,
 }
 
 impl GoAppPreset {
-    pub fn new(go_version: String, enable_linter: bool, enable_security_scan: bool) -> Self {
-        Self {
-            go_version,
-            enable_linter,
-            enable_security_scan,
-        }
-    }
-
-    /// Create a new GoAppPreset from editor configuration
-    pub fn from_config(config: &PresetConfig, version: &str) -> Self {
-        Self::new(
-            version.to_string(),
-            config.get_bool("enable_linter"),
-            config.get_bool("enable_security"),
-        )
-    }
-
     /// Constant default instance for registry initialization
     pub const DEFAULT: Self = Self {
         go_version: String::new(),
         enable_linter: false,
         enable_security_scan: false,
     };
-}
-
-impl Default for GoAppPreset {
-    fn default() -> Self {
-        Self {
-            go_version: "1.21".to_string(),
-            enable_linter: false,
-            enable_security_scan: false,
-        }
-    }
 }
 
 impl ToGitHub for GoAppPreset {
@@ -410,79 +409,4 @@ impl PresetInfo for GoAppPreset {
     }
 }
 
-impl EditorPreset for GoAppPreset {
-    fn preset_id(&self) -> &'static str {
-        "go-app"
-    }
-
-    fn preset_name(&self) -> &'static str {
-        "Go App"
-    }
-
-    fn preset_description(&self) -> &'static str {
-        "CI pipeline for Go applications with testing and linting"
-    }
-
-    fn features(&self) -> Vec<FeatureMeta> {
-        vec![
-            FeatureMeta {
-                id: "linting".to_string(),
-                display_name: "Linting".to_string(),
-                description: "Code quality checks with golangci-lint".to_string(),
-                options: vec![OptionMeta {
-                    id: "enable_linter".to_string(),
-                    display_name: "Enable Linter".to_string(),
-                    description: "Run golangci-lint for code quality".to_string(),
-                    default_value: OptionValue::Bool(true),
-                    depends_on: None,
-                }],
-            },
-            FeatureMeta {
-                id: "security".to_string(),
-                display_name: "Security".to_string(),
-                description: "Security vulnerability scanning".to_string(),
-                options: vec![OptionMeta {
-                    id: "enable_security".to_string(),
-                    display_name: "Security Scan".to_string(),
-                    description: "Run gosec for security vulnerabilities".to_string(),
-                    default_value: OptionValue::Bool(true),
-                    depends_on: None,
-                }],
-            },
-        ]
-    }
-
-    fn generate(
-        &self,
-        config: &PresetConfig,
-        platform: Platform,
-        language_version: &str,
-    ) -> Result<String> {
-        let preset = Self::from_config(config, language_version);
-        generate_for_platform(&preset, platform)
-    }
-
-    fn matches_project(&self, project_type: &ProjectType, _working_dir: &Path) -> bool {
-        matches!(project_type, ProjectType::GoApp | ProjectType::GoLibrary)
-    }
-
-    fn default_config(&self, detected: bool) -> PresetConfig {
-        let mut config = PresetConfig::new(self.preset_id().to_string());
-
-        for feature in self.features() {
-            for option in feature.options {
-                let value = if detected {
-                    option.default_value.clone()
-                } else {
-                    match option.default_value {
-                        OptionValue::Bool(_) => OptionValue::Bool(false),
-                        other => other,
-                    }
-                };
-                config.set(option.id, value);
-            }
-        }
-
-        config
-    }
-}
+// EditorPreset implementation is now auto-generated by #[derive(Preset)]

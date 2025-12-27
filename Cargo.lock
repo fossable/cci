@@ -177,6 +177,7 @@ dependencies = [
  "anyhow",
  "assert_cmd",
  "cargo_toml",
+ "cci-macros",
  "chrono",
  "clap",
  "colored",
@@ -193,6 +194,16 @@ dependencies = [
  "tempfile",
  "toml",
  "walkdir",
+]
+
+[[package]]
+name = "cci-macros"
+version = "0.1.0"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

@@ -56,8 +56,7 @@ pub fn handle_generate(config_path: &str, platform_arg: Option<String>, force: b
     let mut preset_configs = Vec::new();
 
     for preset_choice in config.presets {
-        let (preset_id, preset_config) = preset_choice_to_config(preset_choice)
-            .with_context(|| "Failed to convert preset configuration")?;
+        let (preset_id, preset_config) = preset_choice_to_config(&preset_choice);
         println!("  {} {}", "•".blue(), preset_id);
         preset_configs.push((preset_id, preset_config));
     }
@@ -142,7 +141,7 @@ pub fn handle_validate(config_path: &str) -> Result<()> {
 
     for (idx, preset) in config.presets.iter().enumerate() {
         let preset_name = match preset {
-            crate::config::PresetChoice::Python(_) => "Python",
+            crate::config::PresetChoice::PythonApp(_) => "Python",
             crate::config::PresetChoice::Rust(_) => "Rust",
             crate::config::PresetChoice::GoApp(_) => "Go App",
             crate::config::PresetChoice::Docker(_) => "Docker",

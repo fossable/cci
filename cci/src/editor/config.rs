@@ -136,6 +136,7 @@ pub trait EditorPreset: Send + Sync {
         -> Result<String>;
 
     /// Check if this preset matches the detected project type
+    /// This is used for UI coloring and sorting, not for enabling/disabling presets
     fn matches_project(&self, project_type: &ProjectType, working_dir: &std::path::Path) -> bool;
 
     /// Get default configuration based on project detection

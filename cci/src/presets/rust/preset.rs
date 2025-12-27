@@ -1,69 +1,81 @@
-use crate::detection::ProjectType;
-use crate::editor::config::{EditorPreset, FeatureMeta, OptionMeta, OptionValue, PresetConfig};
-use crate::editor::state::Platform;
 use crate::error::Result;
 use crate::platforms::circleci::models::CircleCIConfig;
 use crate::platforms::github::models::{
     GitHubJob, GitHubStep, GitHubTriggerConfig, GitHubTriggers, GitHubWorkflow,
 };
 use crate::platforms::gitlab::models::GitLabCI;
-use crate::platforms::helpers::generate_for_platform;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::{Detectable, PresetInfo, ToCircleCI, ToGitea, ToGitHub, ToGitLab, ToJenkins};
+use cci_macros::Preset;
 use std::collections::BTreeMap;
-use std::path::Path;
 
 /// Unified preset for Rust projects (binaries, libraries, and workspaces)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Preset)]
+#[preset(
+    id = "rust",
+    name = "Rust",
+    description = "CI pipeline for Rust projects (binaries, libraries, and workspaces)",
+    matches = "RustBinary | RustLibrary | RustWorkspace"
+)]
 pub struct RustPreset {
+    #[preset_field(
+        ron_field = "version",
+        default = "\"stable\".to_string()",
+        hidden = true
+    )]
     rust_version: String,
+
+    #[preset_field(
+        feature = "testing",
+        feature_display = "Testing",
+        feature_description = "Test coverage reporting",
+        display = "Code Coverage",
+        description = "Enable code coverage reporting with tarpaulin",
+        default = "true"
+    )]
     enable_coverage: bool,
+
+    #[preset_field(
+        feature = "linting",
+        feature_display = "Linting",
+        feature_description = "Code quality checks",
+        display = "Clippy Linter",
+        description = "Run Clippy linter for code quality",
+        default = "true"
+    )]
     enable_linter: bool,
+
+    #[preset_field(
+        id = "enable_security",
+        feature = "security",
+        feature_display = "Security",
+        feature_description = "Security vulnerability scanning",
+        display = "Security Scan",
+        description = "Run cargo-audit for dependency vulnerabilities",
+        default = "true"
+    )]
     enable_security_scan: bool,
+
+    #[preset_field(
+        id = "enable_formatter",
+        feature = "formatting",
+        feature_display = "Formatting",
+        feature_description = "Code formatting checks",
+        display = "Rustfmt Check",
+        description = "Check code formatting with rustfmt",
+        default = "true"
+    )]
     enable_format_check: bool,
+
+    #[preset_field(
+        feature = "building",
+        feature_display = "Building",
+        feature_description = "Release binary builds",
+        display = "Build Release",
+        description = "Build optimized release binary in CI",
+        default = "true"
+    )]
     build_release: bool,
-}
-
-impl RustPreset {
-    pub fn new(
-        rust_version: String,
-        enable_coverage: bool,
-        enable_linter: bool,
-        enable_security_scan: bool,
-        enable_format_check: bool,
-        build_release: bool,
-    ) -> Self {
-        Self {
-            rust_version,
-            enable_coverage,
-            enable_linter,
-            enable_security_scan,
-            enable_format_check,
-            build_release,
-        }
-    }
-
-    /// Create a new RustPreset from editor configuration
-    pub fn from_config(config: &PresetConfig, version: &str) -> Self {
-        Self::new(
-            version.to_string(),
-            config.get_bool("enable_coverage"),
-            config.get_bool("enable_linter"),
-            config.get_bool("enable_security"),
-            config.get_bool("enable_formatter"),
-            config.get_bool("build_release"),
-        )
-    }
-
-    /// Constant default instance for registry initialization
-    pub const DEFAULT: Self = Self {
-        rust_version: String::new(),
-        enable_coverage: false,
-        enable_linter: false,
-        enable_security_scan: false,
-        enable_format_check: false,
-        build_release: false,
-    };
 }
 
 impl Default for RustPreset {
@@ -790,121 +802,6 @@ impl PresetInfo for RustPreset {
     }
 }
 
-impl EditorPreset for RustPreset {
-    fn preset_id(&self) -> &'static str {
-        "rust"
-    }
-
-    fn preset_name(&self) -> &'static str {
-        "Rust"
-    }
-
-    fn preset_description(&self) -> &'static str {
-        "CI pipeline for Rust projects (binaries, libraries, and workspaces)"
-    }
-
-    fn features(&self) -> Vec<FeatureMeta> {
-        vec![
-            FeatureMeta {
-                id: "testing".to_string(),
-                display_name: "Testing".to_string(),
-                description: "Test coverage reporting".to_string(),
-                options: vec![OptionMeta {
-                    id: "enable_coverage".to_string(),
-                    display_name: "Code Coverage".to_string(),
-                    description: "Enable code coverage reporting with tarpaulin".to_string(),
-                    default_value: OptionValue::Bool(true),
-                    depends_on: None,
-                }],
-            },
-            FeatureMeta {
-                id: "linting".to_string(),
-                display_name: "Linting".to_string(),
-                description: "Code quality checks".to_string(),
-                options: vec![OptionMeta {
-                    id: "enable_linter".to_string(),
-                    display_name: "Clippy Linter".to_string(),
-                    description: "Run Clippy linter for code quality".to_string(),
-                    default_value: OptionValue::Bool(true),
-                    depends_on: None,
-                }],
-            },
-            FeatureMeta {
-                id: "formatting".to_string(),
-                display_name: "Formatting".to_string(),
-                description: "Code formatting checks".to_string(),
-                options: vec![OptionMeta {
-                    id: "enable_formatter".to_string(),
-                    display_name: "Rustfmt Check".to_string(),
-                    description: "Check code formatting with rustfmt".to_string(),
-                    default_value: OptionValue::Bool(true),
-                    depends_on: None,
-                }],
-            },
-            FeatureMeta {
-                id: "security".to_string(),
-                display_name: "Security".to_string(),
-                description: "Security vulnerability scanning".to_string(),
-                options: vec![OptionMeta {
-                    id: "enable_security".to_string(),
-                    display_name: "Security Scan".to_string(),
-                    description: "Run cargo-audit for dependency vulnerabilities".to_string(),
-                    default_value: OptionValue::Bool(true),
-                    depends_on: None,
-                }],
-            },
-            FeatureMeta {
-                id: "building".to_string(),
-                display_name: "Building".to_string(),
-                description: "Release binary builds".to_string(),
-                options: vec![OptionMeta {
-                    id: "build_release".to_string(),
-                    display_name: "Build Release".to_string(),
-                    description: "Build optimized release binary in CI".to_string(),
-                    default_value: OptionValue::Bool(true),
-                    depends_on: None,
-                }],
-            },
-        ]
-    }
-
-    fn generate(
-        &self,
-        config: &PresetConfig,
-        platform: Platform,
-        language_version: &str,
-    ) -> Result<String> {
-        let preset = Self::from_config(config, language_version);
-        generate_for_platform(&preset, platform)
-    }
-
-    fn matches_project(&self, project_type: &ProjectType, _working_dir: &Path) -> bool {
-        matches!(
-            project_type,
-            ProjectType::RustBinary | ProjectType::RustLibrary | ProjectType::RustWorkspace
-        )
-    }
-
-    fn default_config(&self, detected: bool) -> PresetConfig {
-        let mut config = PresetConfig::new(self.preset_id().to_string());
-
-        for feature in self.features() {
-            for option in feature.options {
-                let value = if detected {
-                    option.default_value.clone()
-                } else {
-                    match option.default_value {
-                        OptionValue::Bool(_) => OptionValue::Bool(false),
-                        other => other,
-                    }
-                };
-                config.set(option.id, value);
-            }
-        }
-
-        config
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -914,23 +811,24 @@ mod tests {
     fn test_default() {
         let preset = RustPreset::default();
         assert_eq!(preset.rust_version, "stable");
-        assert!(!preset.enable_coverage);
-        assert!(!preset.enable_linter);
-        assert!(!preset.enable_security_scan);
-        assert!(!preset.enable_format_check);
-        assert!(!preset.build_release);
+        // Defaults changed - all features are now enabled by default
+        assert!(preset.enable_coverage);
+        assert!(preset.enable_linter);
+        assert!(preset.enable_security_scan);
+        assert!(preset.enable_format_check);
+        assert!(preset.build_release);
     }
 
     #[test]
     fn test_with_options() {
-        let preset = RustPreset::new(
-            "1.75.0".to_string(),
-            true,
-            true,
-            false,
-            false,
-            true,
-        );
+        let preset = RustPreset {
+            rust_version: "1.75.0".to_string(),
+            enable_coverage: true,
+            enable_linter: true,
+            enable_security_scan: false,
+            enable_format_check: false,
+            build_release: true,
+        };
 
         assert_eq!(preset.rust_version, "1.75.0");
         assert!(preset.enable_coverage);
@@ -940,14 +838,14 @@ mod tests {
 
     #[test]
     fn test_to_github_basic() {
-        let preset = RustPreset::new(
-            "stable".to_string(),
-            false,
-            false,
-            false,
-            false,
-            false,
-        );
+        let preset = RustPreset {
+            rust_version: "stable".to_string(),
+            enable_coverage: false,
+            enable_linter: false,
+            enable_security_scan: false,
+            enable_format_check: false,
+            build_release: false,
+        };
         let workflow = preset.to_github().unwrap();
 
         assert_eq!(workflow.name, "CI");
@@ -957,14 +855,14 @@ mod tests {
 
     #[test]
     fn test_to_github_with_lint() {
-        let preset = RustPreset::new(
-            "stable".to_string(),
-            false,
-            true,
-            false,
-            false,
-            false,
-        );
+        let preset = RustPreset {
+            rust_version: "stable".to_string(),
+            enable_coverage: false,
+            enable_linter: true,
+            enable_security_scan: false,
+            enable_format_check: false,
+            build_release: false,
+        };
         let workflow = preset.to_github().unwrap();
 
         assert!(workflow.jobs.contains_key("rust/test"));

@@ -16,7 +16,7 @@ pub fn render_ui(f: &mut Frame, state: &EditorState) {
             Constraint::Min(0),     // Main content
             Constraint::Length(3),  // Footer
         ])
-        .split(f.size());
+        .split(f.area());
 
     // Information message bar (where platform bar was)
     render_info_bar(f, chunks[0], state);
@@ -266,7 +266,7 @@ fn render_preview_panel(f: &mut Frame, area: Rect, state: &EditorState) {
 }
 
 fn render_platform_menu(f: &mut Frame, state: &EditorState) {
-    let area = f.size();
+    let area = f.area();
 
     // Center the menu
     let menu_width = 40;
