@@ -1,7 +1,7 @@
-use crate::tui::state::{Platform, TreeItem, TuiState};
+use crate::editor::state::{EditorState, Platform, TreeItem};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-pub fn handle_key_event(state: &mut TuiState, key: KeyEvent) {
+pub fn handle_key_event(state: &mut EditorState, key: KeyEvent) {
     // If platform menu is open, handle menu navigation
     if state.platform_menu_open {
         match key.code {

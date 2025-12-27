@@ -1,4 +1,4 @@
-use super::detector::{DetectionResult, ProjectDetector, ProjectType};
+use super::{DetectionResult, ProjectDetector, ProjectType};
 use crate::error::Result;
 use std::collections::HashMap;
 use std::fs;
@@ -15,7 +15,6 @@ impl ProjectDetector for GoDetector {
         }
 
         let mut metadata = HashMap::new();
-        let confidence = 0.9;
 
         // Try to parse go.mod for version
         if let Ok(contents) = fs::read_to_string(&go_mod) {
@@ -37,16 +36,11 @@ impl ProjectDetector for GoDetector {
         Ok(Some(DetectionResult {
             project_type,
             language_version: Some("1.21".to_string()),
-            confidence,
             metadata,
         }))
     }
 
     fn name(&self) -> &str {
         "Go"
-    }
-
-    fn priority(&self) -> u8 {
-        55
     }
 }

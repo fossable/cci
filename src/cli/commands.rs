@@ -1,16 +1,16 @@
 use crate::config::{preset_choice_to_config, CciConfig};
+use crate::editor::registry::build_registry;
 use crate::error::Result;
 use crate::generator::MultiPresetGenerator;
-use crate::tui::registry::build_registry;
 use anyhow::{bail, Context};
 use colored::Colorize;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 /// Handle the generate command
-pub fn handle_generate(config_path: &str, output_dir: Option<String>, force: bool) -> Result<()> {
+pub fn handle_generate(config_path: &str, platform_arg: Option<String>, force: bool) -> Result<()> {
     use crate::detection::DetectorRegistry;
-    use crate::tui::state::Platform;
+    use crate::editor::state::Platform;
 
     // 1. Load and parse RON
     println!("{} {}", "Loading".cyan().bold(), config_path);
@@ -26,11 +26,22 @@ pub fn handle_generate(config_path: &str, output_dir: Option<String>, force: boo
         bail!("No presets defined in configuration file");
     }
 
-    // 3. Auto-detect platform (default to GitHub)
+    // 3. Detect project and determine platform
     let working_dir = std::path::PathBuf::from(".");
     let detector_registry = DetectorRegistry::new();
     let detection = detector_registry.detect(&working_dir)?;
-    let platform = Platform::GitHub; // Default platform
+
+    let platform = if let Some(p) = platform_arg {
+        match p.to_lowercase().as_str() {
+            "github" => Platform::GitHub,
+            "gitlab" => Platform::GitLab,
+            "circleci" => Platform::CircleCI,
+            "jenkins" => Platform::Jenkins,
+            _ => Platform::GitHub,
+        }
+    } else {
+        Platform::GitHub // Default platform
+    };
 
     println!(
         "{} {} preset(s) for platform {}",
@@ -68,17 +79,11 @@ pub fn handle_generate(config_path: &str, output_dir: Option<String>, force: boo
         .with_context(|| "Failed to generate CI configurations")?;
 
     // 6. Write files
-    let base_dir = output_dir.as_deref().unwrap_or(".");
-    let base_path = PathBuf::from(base_dir);
+    let base_path = PathBuf::from(".");
 
     for (filename, content) in outputs {
-        let output_path = if output_dir.is_some() {
-            // If output directory is specified, use it directly
-            base_path.join(filename.file_name().unwrap())
-        } else {
-            // Otherwise, use the full path (includes subdirectories like .github/workflows)
-            base_path.join(&filename)
-        };
+        // Use the full path (includes subdirectories like .github/workflows)
+        let output_path = base_path.join(&filename);
 
         // Check if file exists and force flag
         if output_path.exists() && !force {

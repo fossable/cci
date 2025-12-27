@@ -1,13 +1,13 @@
 use crate::detection::ProjectType;
+use crate::editor::config::{EditorPreset, FeatureMeta, OptionMeta, OptionValue, PresetConfig};
+use crate::editor::state::Platform;
 use crate::error::Result;
 use crate::presets::rust::{RustBinaryPreset, RustLibraryPreset};
 use crate::traits::{ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
-use crate::tui::config::{FeatureMeta, OptionMeta, OptionValue, PresetConfig, TuiPreset};
-use crate::tui::state::Platform;
 
-pub struct RustLibraryTuiPreset;
+pub struct RustLibraryEditorPreset;
 
-impl TuiPreset for RustLibraryTuiPreset {
+impl EditorPreset for RustLibraryEditorPreset {
     fn preset_id(&self) -> &'static str {
         "rust-library"
     }
@@ -137,9 +137,9 @@ impl TuiPreset for RustLibraryTuiPreset {
     }
 }
 
-pub struct RustBinaryTuiPreset;
+pub struct RustBinaryEditorPreset;
 
-impl TuiPreset for RustBinaryTuiPreset {
+impl EditorPreset for RustBinaryEditorPreset {
     fn preset_id(&self) -> &'static str {
         "rust-binary"
     }

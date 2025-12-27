@@ -48,26 +48,6 @@ pub trait PresetInfo {
     fn description(&self) -> &str;
 }
 
-/// Trait for addons that modify GitHub workflows
-pub trait GitHubAddon {
-    fn apply_to_github(&self, workflow: &mut GitHubWorkflow) -> Result<()>;
-}
-
-/// Trait for addons that modify GitLab configs
-pub trait GitLabAddon {
-    fn apply_to_gitlab(&self, config: &mut GitLabCI) -> Result<()>;
-}
-
-/// Trait for addons that modify CircleCI configs
-pub trait CircleCIAddon {
-    fn apply_to_circleci(&self, config: &mut CircleCIConfig) -> Result<()>;
-}
-
-/// Trait for addons that modify Jenkins pipelines
-pub trait JenkinsAddon {
-    fn apply_to_jenkins(&self, pipeline: &mut JenkinsConfig) -> Result<()>;
-}
-
 /// Combined trait for presets that can be detected and provide info
 /// This allows presets to be used in trait objects
 pub trait Preset: Detectable + PresetInfo {}

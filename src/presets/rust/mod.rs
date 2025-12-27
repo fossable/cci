@@ -1,7 +1,7 @@
 mod binary;
+pub mod editor;
 mod library;
-pub mod tui;
 
 pub use binary::RustBinaryPreset;
+pub use editor::{RustBinaryEditorPreset, RustLibraryEditorPreset};
 pub use library::RustLibraryPreset;
-pub use tui::{RustBinaryTuiPreset, RustLibraryTuiPreset};

@@ -1,10 +1,9 @@
 pub mod cli;
 pub mod config;
-pub mod constants;
 pub mod detection;
+pub mod editor;
 pub mod error;
 pub mod generator;
 pub mod platforms;
 pub mod presets;
 pub mod traits;
-pub mod tui;

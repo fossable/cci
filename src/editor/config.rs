@@ -1,6 +1,6 @@
 use crate::detection::ProjectType;
+use crate::editor::state::Platform;
 use crate::error::Result;
-use crate::tui::state::Platform;
 use std::collections::HashMap;
 
 /// Represents a configurable option value
@@ -117,8 +117,8 @@ impl PresetConfig {
     }
 }
 
-/// Trait that all presets must implement for TUI integration
-pub trait TuiPreset: Send + Sync {
+/// Trait that all presets must implement for editor integration
+pub trait EditorPreset: Send + Sync {
     /// Unique identifier for this preset
     fn preset_id(&self) -> &'static str;
 

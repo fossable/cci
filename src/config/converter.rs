@@ -1,9 +1,9 @@
 use crate::config::ron_types::*;
+use crate::editor::config::{OptionValue, PresetConfig};
 use crate::error::Result;
-use crate::tui::config::{OptionValue, PresetConfig};
 use anyhow::anyhow;
 
-/// Convert a PresetChoice to (preset_id, PresetConfig) for TUI use
+/// Convert a PresetChoice to (preset_id, PresetConfig) for editor use
 pub fn preset_choice_to_config(choice: PresetChoice) -> Result<(String, PresetConfig)> {
     match choice {
         PresetChoice::Python(config) => {

@@ -1,5 +1,5 @@
+pub mod editor;
 mod preset;
-pub mod tui;
 
+pub use editor::DockerEditorPreset;
 pub use preset::{DockerPreset, DockerRegistry};
-pub use tui::DockerTuiPreset;

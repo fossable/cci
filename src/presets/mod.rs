@@ -1,4 +1,3 @@
-pub mod addons;
 pub mod docker;
 pub mod go;
 pub mod python;

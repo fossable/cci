@@ -1,7 +1,7 @@
+use crate::editor::config::PresetConfig;
+use crate::editor::registry::PresetRegistry;
+use crate::editor::state::Platform;
 use crate::error::Result;
-use crate::tui::config::PresetConfig;
-use crate::tui::registry::PresetRegistry;
-use crate::tui::state::Platform;
 use std::path::PathBuf;
 use std::sync::Arc;
 

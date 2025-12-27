@@ -1,10 +1,10 @@
-use super::config::TuiPreset;
+use super::config::EditorPreset;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 /// Global registry of all presets
 pub struct PresetRegistry {
-    presets: HashMap<String, Arc<dyn TuiPreset>>,
+    presets: HashMap<String, Arc<dyn EditorPreset>>,
     /// Ordered list of preset IDs for consistent iteration
     order: Vec<String>,
 }
@@ -17,17 +17,17 @@ impl PresetRegistry {
         }
     }
 
-    pub fn register(&mut self, preset: Arc<dyn TuiPreset>) {
+    pub fn register(&mut self, preset: Arc<dyn EditorPreset>) {
         let id = preset.preset_id().to_string();
         self.presets.insert(id.clone(), preset);
         self.order.push(id);
     }
 
-    pub fn get(&self, id: &str) -> Option<&Arc<dyn TuiPreset>> {
+    pub fn get(&self, id: &str) -> Option<&Arc<dyn EditorPreset>> {
         self.presets.get(id)
     }
 
-    pub fn all(&self) -> Vec<&Arc<dyn TuiPreset>> {
+    pub fn all(&self) -> Vec<&Arc<dyn EditorPreset>> {
         self.order
             .iter()
             .filter_map(|id| self.presets.get(id))
@@ -39,12 +39,12 @@ impl PresetRegistry {
 pub fn build_registry() -> PresetRegistry {
     let mut registry = PresetRegistry::new();
 
-    // Register all TUI preset implementations
-    registry.register(Arc::new(crate::presets::rust::RustLibraryTuiPreset));
-    registry.register(Arc::new(crate::presets::rust::RustBinaryTuiPreset));
-    registry.register(Arc::new(crate::presets::python::PythonAppTuiPreset));
-    registry.register(Arc::new(crate::presets::go::GoAppTuiPreset));
-    registry.register(Arc::new(crate::presets::docker::DockerTuiPreset));
+    // Register all editor preset implementations
+    registry.register(Arc::new(crate::presets::rust::RustLibraryEditorPreset));
+    registry.register(Arc::new(crate::presets::rust::RustBinaryEditorPreset));
+    registry.register(Arc::new(crate::presets::python::PythonAppEditorPreset));
+    registry.register(Arc::new(crate::presets::go::GoAppEditorPreset));
+    registry.register(Arc::new(crate::presets::docker::DockerEditorPreset));
 
     registry
 }

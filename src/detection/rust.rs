@@ -1,4 +1,4 @@
-use super::detector::{DetectionResult, ProjectDetector, ProjectType};
+use super::{DetectionResult, ProjectDetector, ProjectType};
 use crate::error::{cargo_toml_error, Result};
 use cargo_toml::Manifest;
 use std::collections::HashMap;
@@ -21,7 +21,6 @@ impl ProjectDetector for RustDetector {
             .map_err(|e| cargo_toml_error(e.to_string()))?;
 
         let mut metadata = HashMap::new();
-        let mut confidence = 0.9;
 
         // Check if it's a workspace
         if let Some(workspace) = &manifest.workspace {
@@ -34,7 +33,6 @@ impl ProjectDetector for RustDetector {
             return Ok(Some(DetectionResult {
                 project_type: ProjectType::RustWorkspace,
                 language_version: extract_rust_version(&manifest),
-                confidence,
                 metadata,
             }));
         }
@@ -48,7 +46,6 @@ impl ProjectDetector for RustDetector {
             ProjectType::RustBinary
         } else {
             // Default to binary if unclear
-            confidence = 0.7;
             metadata.insert("type".to_string(), "binary (assumed)".to_string());
             ProjectType::RustBinary
         };
@@ -59,25 +56,15 @@ impl ProjectDetector for RustDetector {
             // For simplicity, skip edition extraction due to Inheritable complexity
         }
 
-        // Check for Cargo.lock (indicates more mature project)
-        if path.join("Cargo.lock").exists() {
-            confidence = (confidence + 0.05).min(1.0);
-        }
-
         Ok(Some(DetectionResult {
             project_type,
             language_version: extract_rust_version(&manifest),
-            confidence,
             metadata,
         }))
     }
 
     fn name(&self) -> &str {
         "Rust"
-    }
-
-    fn priority(&self) -> u8 {
-        60
     }
 }
 
@@ -121,7 +108,6 @@ name = "test_lib"
         let result = detector.detect(dir.path()).unwrap().unwrap();
 
         assert_eq!(result.project_type, ProjectType::RustLibrary);
-        assert!(result.confidence > 0.8);
         assert_eq!(result.metadata.get("name").unwrap(), "test-lib");
     }
 
@@ -144,7 +130,6 @@ name = "test-bin"
         let result = detector.detect(dir.path()).unwrap().unwrap();
 
         assert_eq!(result.project_type, ProjectType::RustBinary);
-        assert!(result.confidence > 0.8);
     }
 
     #[test]
@@ -161,7 +146,6 @@ members = ["crate1", "crate2"]
         let result = detector.detect(dir.path()).unwrap().unwrap();
 
         assert_eq!(result.project_type, ProjectType::RustWorkspace);
-        assert!(result.confidence > 0.8);
         assert_eq!(result.metadata.get("member_count").unwrap(), "2");
     }
 

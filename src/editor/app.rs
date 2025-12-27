@@ -1,8 +1,8 @@
 use crate::detection::DetectionResult;
+use crate::editor::events::handle_key_event;
+use crate::editor::state::EditorState;
+use crate::editor::ui::render_ui;
 use crate::error::Result;
-use crate::tui::events::handle_key_event;
-use crate::tui::state::TuiState;
-use crate::tui::ui::render_ui;
 use crossterm::{
     event::{self, Event},
     execute,
@@ -13,14 +13,14 @@ use std::io;
 use std::path::PathBuf;
 use std::time::Duration;
 
-pub struct TuiApp {
-    state: TuiState,
+pub struct EditorApp {
+    state: EditorState,
 }
 
-impl TuiApp {
+impl EditorApp {
     pub fn new(detection: DetectionResult, platform: Option<String>) -> Result<Self> {
         let working_dir = PathBuf::from(".");
-        let state = TuiState::from_detection(detection, platform, working_dir)?;
+        let state = EditorState::from_detection(detection, platform, working_dir)?;
 
         Ok(Self { state })
     }

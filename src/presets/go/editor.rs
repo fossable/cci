@@ -1,13 +1,13 @@
 use crate::detection::ProjectType;
+use crate::editor::config::{EditorPreset, FeatureMeta, OptionMeta, OptionValue, PresetConfig};
+use crate::editor::state::Platform;
 use crate::error::Result;
 use crate::presets::go::GoAppPreset;
 use crate::traits::{ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
-use crate::tui::config::{FeatureMeta, OptionMeta, OptionValue, PresetConfig, TuiPreset};
-use crate::tui::state::Platform;
 
-pub struct GoAppTuiPreset;
+pub struct GoAppEditorPreset;
 
-impl TuiPreset for GoAppTuiPreset {
+impl EditorPreset for GoAppEditorPreset {
     fn preset_id(&self) -> &'static str {
         "go-app"
     }

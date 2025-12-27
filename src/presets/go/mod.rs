@@ -1,5 +1,5 @@
 mod app;
-pub mod tui;
+pub mod editor;
 
 pub use app::GoAppPreset;
-pub use tui::GoAppTuiPreset;
+pub use editor::GoAppEditorPreset;

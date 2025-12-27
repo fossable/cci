@@ -1,13 +1,13 @@
 use crate::detection::ProjectType;
+use crate::editor::config::{EditorPreset, FeatureMeta, OptionMeta, OptionValue, PresetConfig};
+use crate::editor::state::Platform;
 use crate::error::Result;
 use crate::presets::docker::{DockerPreset, DockerRegistry};
 use crate::traits::{ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
-use crate::tui::config::{FeatureMeta, OptionMeta, OptionValue, PresetConfig, TuiPreset};
-use crate::tui::state::Platform;
 
-pub struct DockerTuiPreset;
+pub struct DockerEditorPreset;
 
-impl TuiPreset for DockerTuiPreset {
+impl EditorPreset for DockerEditorPreset {
     fn preset_id(&self) -> &'static str {
         "docker"
     }

@@ -1,7 +1,7 @@
 use crate::detection::{DetectionResult, ProjectType};
+use crate::editor::config::{OptionValue, PresetConfig};
+use crate::editor::registry::{build_registry, PresetRegistry};
 use crate::error::Result;
-use crate::tui::config::{OptionValue, PresetConfig};
-use crate::tui::registry::{build_registry, PresetRegistry};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -50,7 +50,7 @@ pub enum TreeItem {
     Option(String, String, String),        // preset_id, feature_id, option_id
 }
 
-pub struct TuiState {
+pub struct EditorState {
     // Project context
     pub project_type: ProjectType,
     pub language_version: String,
@@ -86,7 +86,7 @@ pub struct TuiState {
     pub should_write: bool,
 }
 
-impl TuiState {
+impl EditorState {
     pub fn from_detection(
         detection: DetectionResult,
         platform: Option<String>,
@@ -495,11 +495,10 @@ mod tests {
         let detection = DetectionResult {
             project_type: ProjectType::RustLibrary,
             language_version: Some("stable".to_string()),
-            confidence: 0.9,
             metadata: HashMap::new(),
         };
 
-        let state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         // All presets should be shown in the tree
         let preset_items: Vec<&str> = state.tree_items
@@ -536,11 +535,10 @@ mod tests {
         let detection = DetectionResult {
             project_type: ProjectType::RustBinary,
             language_version: Some("stable".to_string()),
-            confidence: 0.9,
             metadata: HashMap::new(),
         };
 
-        let state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         let rust_lib_config = state.preset_configs.get("rust-library").unwrap();
         assert_eq!(rust_lib_config.get_bool("enable_coverage"), false);
@@ -559,11 +557,10 @@ mod tests {
         let detection = DetectionResult {
             project_type: ProjectType::PythonApp,
             language_version: Some("3.11".to_string()),
-            confidence: 0.9,
             metadata: HashMap::new(),
         };
 
-        let state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         let rust_lib_config = state.preset_configs.get("rust-library").unwrap();
         assert_eq!(rust_lib_config.get_bool("enable_coverage"), false);
@@ -580,11 +577,10 @@ mod tests {
         let detection = DetectionResult {
             project_type: ProjectType::GoApp,
             language_version: Some("1.21".to_string()),
-            confidence: 0.9,
             metadata: HashMap::new(),
         };
 
-        let state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         let go_config = state.preset_configs.get("go-app").unwrap();
         assert_eq!(go_config.get_bool("enable_linter"), true);
@@ -606,11 +602,10 @@ mod tests {
             let detection = DetectionResult {
                 project_type: project_type.clone(),
                 language_version: Some("stable".to_string()),
-                confidence: 0.9,
-                metadata: HashMap::new(),
+                    metadata: HashMap::new(),
             };
 
-            let state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+            let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
             let has_docker = state.tree_items
                 .iter()
@@ -628,11 +623,10 @@ mod tests {
         let detection = DetectionResult {
             project_type: ProjectType::RustLibrary,
             language_version: Some("stable".to_string()),
-            confidence: 0.9,
             metadata: HashMap::new(),
         };
 
-        let state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         let docker_config = state.preset_configs.get("docker").unwrap();
         assert_eq!(docker_config.get_bool("enable_cache"), true);
@@ -645,11 +639,10 @@ mod tests {
         let detection = DetectionResult {
             project_type: ProjectType::RustLibrary,
             language_version: Some("stable".to_string()),
-            confidence: 0.9,
             metadata: HashMap::new(),
         };
 
-        let state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         let docker_config = state.preset_configs.get("docker").unwrap();
         assert_eq!(docker_config.get_bool("enable_cache"), false);
@@ -666,11 +659,10 @@ mod tests {
             let detection = DetectionResult {
                 project_type: ProjectType::RustLibrary,
                 language_version: Some("stable".to_string()),
-                confidence: 0.9,
-                metadata: HashMap::new(),
+                    metadata: HashMap::new(),
             };
 
-            let state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+            let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
             let docker_config = state.preset_configs.get("docker").unwrap();
             assert!(
@@ -688,17 +680,16 @@ mod tests {
         let detection = DetectionResult {
             project_type: ProjectType::RustLibrary,
             language_version: Some("stable".to_string()),
-            confidence: 0.9,
             metadata: HashMap::new(),
         };
 
-        let mut state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let mut state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         // The YAML should be for Rust Library initially
         assert!(state.yaml_preview.contains("cargo"));
 
         // Now manually disable Rust Library and enable Python App
-        use crate::tui::config::OptionValue;
+        use crate::editor::config::OptionValue;
         state.set_option_value("rust-library", "enable_coverage", OptionValue::Bool(false));
         state.set_option_value("rust-library", "enable_linter", OptionValue::Bool(false));
         state.set_option_value("rust-library", "enable_formatter", OptionValue::Bool(false));
@@ -721,14 +712,13 @@ mod tests {
         let detection = DetectionResult {
             project_type: ProjectType::RustLibrary,
             language_version: Some("stable".to_string()),
-            confidence: 0.9,
             metadata: HashMap::new(),
         };
 
-        let mut state = TuiState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let mut state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         // Enable both Rust Library and Python (unusual but allowed)
-        use crate::tui::config::OptionValue;
+        use crate::editor::config::OptionValue;
         state.set_option_value("rust-library", "enable_linter", OptionValue::Bool(true));
         state.set_option_value("python-app", "enable_linter", OptionValue::Bool(true));
 

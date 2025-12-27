@@ -1,4 +1,4 @@
-use super::detector::{DetectionResult, ProjectDetector, ProjectType};
+use super::{DetectionResult, ProjectDetector, ProjectType};
 use crate::error::Result;
 use std::collections::HashMap;
 use std::path::Path;
@@ -16,13 +16,10 @@ impl ProjectDetector for PythonDetector {
         }
 
         let mut metadata = HashMap::new();
-        let mut confidence = 0.7;
 
         if has_pyproject {
-            confidence = 0.9;
             metadata.insert("config".to_string(), "pyproject.toml".to_string());
         } else if has_setup {
-            confidence = 0.8;
             metadata.insert("config".to_string(), "setup.py".to_string());
         }
 
@@ -38,16 +35,11 @@ impl ProjectDetector for PythonDetector {
         Ok(Some(DetectionResult {
             project_type,
             language_version: Some("3.11".to_string()),
-            confidence,
             metadata,
         }))
     }
 
     fn name(&self) -> &str {
         "Python"
-    }
-
-    fn priority(&self) -> u8 {
-        55
     }
 }

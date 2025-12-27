@@ -1,5 +1,5 @@
-use crate::tui::config::OptionValue;
-use crate::tui::state::{Platform, TreeItem, TuiState};
+use crate::editor::config::OptionValue;
+use crate::editor::state::{EditorState, Platform, TreeItem};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -8,7 +8,7 @@ use ratatui::{
     Frame,
 };
 
-pub fn render_ui(f: &mut Frame, state: &TuiState) {
+pub fn render_ui(f: &mut Frame, state: &EditorState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -53,7 +53,7 @@ pub fn render_ui(f: &mut Frame, state: &TuiState) {
     }
 }
 
-fn render_info_bar(f: &mut Frame, area: Rect, state: &TuiState) {
+fn render_info_bar(f: &mut Frame, area: Rect, state: &EditorState) {
     let text = if !state.current_item_description.is_empty() {
         state.current_item_description.clone()
     } else {
@@ -68,7 +68,7 @@ fn render_info_bar(f: &mut Frame, area: Rect, state: &TuiState) {
     f.render_widget(paragraph, area);
 }
 
-fn render_platform_bar(f: &mut Frame, area: Rect, state: &TuiState) {
+fn render_platform_bar(f: &mut Frame, area: Rect, state: &EditorState) {
     let text = format!("Platform: {} (press 'p' to change)", state.target_platform.name());
 
     let paragraph = Paragraph::new(text)
@@ -78,7 +78,7 @@ fn render_platform_bar(f: &mut Frame, area: Rect, state: &TuiState) {
     f.render_widget(paragraph, area);
 }
 
-fn render_presets_panel(f: &mut Frame, area: Rect, state: &TuiState) {
+fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
     let mut items: Vec<ListItem> = Vec::new();
 
     for (i, item) in state.tree_items.iter().enumerate() {
@@ -239,7 +239,7 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &TuiState) {
     f.render_widget(list, area);
 }
 
-fn render_preview_panel(f: &mut Frame, area: Rect, state: &TuiState) {
+fn render_preview_panel(f: &mut Frame, area: Rect, state: &EditorState) {
     let preview = if let Some(error) = &state.generation_error {
         Paragraph::new(format!("Error: {}", error))
             .style(Style::default().fg(Color::Red))
@@ -265,7 +265,7 @@ fn render_preview_panel(f: &mut Frame, area: Rect, state: &TuiState) {
     f.render_widget(preview.block(block), area);
 }
 
-fn render_platform_menu(f: &mut Frame, state: &TuiState) {
+fn render_platform_menu(f: &mut Frame, state: &EditorState) {
     let area = f.size();
 
     // Center the menu
@@ -411,7 +411,7 @@ fn highlight_yaml(yaml: &str) -> Vec<Line<'_>> {
     lines
 }
 
-fn render_footer(f: &mut Frame, area: Rect, state: &TuiState) {
+fn render_footer(f: &mut Frame, area: Rect, state: &EditorState) {
     let help_text = if state.platform_menu_open {
         vec![
             Span::styled("↑↓/jk", Style::default().fg(Color::Blue)),

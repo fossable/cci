@@ -8,16 +8,14 @@ fn main() -> Result<()> {
     match cli.command {
         Some(Commands::Generate {
             config,
-            output,
+            platform,
             force,
-        }) => cci::cli::commands::handle_generate(&config, output, force),
+        }) => cci::cli::commands::handle_generate(&config, platform, force),
         Some(Commands::Validate { config }) => cci::cli::commands::handle_validate(&config),
-        Some(Commands::Tui { dir, platform }) => {
-            cci::tui::run_with_args(&dir, platform)
-        }
-        None => {
-            // Default to TUI if no command specified
-            cci::tui::run_with_args(".", None)
+        Some(Commands::Editor { dir }) => cci::editor::run_with_args(&dir, None),
+        _ => {
+            // Default to editor if no command specified
+            cci::editor::run_with_args(".", None)
         }
     }
 }

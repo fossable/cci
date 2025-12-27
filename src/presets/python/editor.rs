@@ -1,13 +1,13 @@
 use crate::detection::ProjectType;
+use crate::editor::config::{EditorPreset, FeatureMeta, OptionMeta, OptionValue, PresetConfig};
+use crate::editor::state::Platform;
 use crate::error::Result;
 use crate::presets::python::{PythonAppPreset, PythonFormatterTool, PythonLinterTool};
 use crate::traits::{ToCircleCI, ToGitHub, ToGitLab, ToJenkins};
-use crate::tui::config::{FeatureMeta, OptionMeta, OptionValue, PresetConfig, TuiPreset};
-use crate::tui::state::Platform;
 
-pub struct PythonAppTuiPreset;
+pub struct PythonAppEditorPreset;
 
-impl TuiPreset for PythonAppTuiPreset {
+impl EditorPreset for PythonAppEditorPreset {
     fn preset_id(&self) -> &'static str {
         "python-app"
     }

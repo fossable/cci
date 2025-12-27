@@ -19,9 +19,9 @@ pub enum Commands {
         #[arg(short, long, default_value = "cci.ron")]
         config: String,
 
-        /// Output directory (default: auto-detect based on platform)
+        /// Target platform
         #[arg(short, long)]
-        output: Option<String>,
+        platform: Option<String>,
 
         /// Force overwrite existing files
         #[arg(short, long)]
@@ -35,14 +35,10 @@ pub enum Commands {
         config: String,
     },
 
-    /// Run interactive TUI (default)
-    Tui {
+    /// Run interactive editor (default)
+    Editor {
         /// Project directory
         #[arg(short, long, default_value = ".")]
         dir: String,
-
-        /// Target platform
-        #[arg(short, long)]
-        platform: Option<String>,
     },
 }
