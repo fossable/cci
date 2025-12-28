@@ -1,5 +1,5 @@
 use crate::editor::state::{EditorState, Platform, TreeItem};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 
 pub fn handle_key_event(state: &mut EditorState, key: KeyEvent) {
     // If platform menu is open, handle menu navigation
@@ -34,10 +34,9 @@ pub fn handle_key_event(state: &mut EditorState, key: KeyEvent) {
             state.should_quit = true;
         }
 
-        // Write and quit
-        KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        // Write CI pipeline YAML
+        KeyCode::Char('w') | KeyCode::Char('W') => {
             state.should_write = true;
-            state.should_quit = true;
         }
 
         // Open platform menu with 'p'

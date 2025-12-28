@@ -19,10 +19,12 @@ pub fn handle_generate(config_path: &str, platform_arg: Option<String>, force: b
 
     // 2. Parse RON
     println!("{}", "Parsing RON configuration...".cyan().bold());
-    let config: CciConfig = ron::from_str(&ron_str)
+    let config: CciConfig = ron::Options::default()
+        .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
+        .from_str(&ron_str)
         .with_context(|| "Failed to parse RON config. Check syntax and structure.")?;
 
-    if config.presets.is_empty() {
+    if config.is_empty() {
         bail!("No presets defined in configuration file");
     }
 
@@ -47,7 +49,7 @@ pub fn handle_generate(config_path: &str, platform_arg: Option<String>, force: b
     println!(
         "{} {} preset(s) for platform {}",
         "Found".green().bold(),
-        config.presets.len(),
+        config.len(),
         format!("{:?}", platform).yellow()
     );
 
@@ -55,7 +57,7 @@ pub fn handle_generate(config_path: &str, platform_arg: Option<String>, force: b
     let registry = Arc::new(build_registry());
     let mut preset_configs = Vec::new();
 
-    for preset_choice in config.presets {
+    for preset_choice in config {
         let (preset_id, preset_config) = preset_choice_to_config(&preset_choice);
         println!("  {} {}", "•".blue(), preset_id);
         preset_configs.push((preset_id, preset_config));
@@ -124,22 +126,25 @@ pub fn handle_validate(config_path: &str) -> Result<()> {
         .with_context(|| format!("Failed to read config file: {}", config_path))?;
 
     // Parse RON
-    let config: CciConfig = ron::from_str(&ron_str).with_context(|| {
-        "Failed to parse RON config. Check syntax and structure:\n\
-         - Ensure all fields are properly formatted\n\
-         - Check for missing commas\n\
-         - Verify enum variants match expected values"
-    })?;
+    let config: CciConfig = ron::Options::default()
+        .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
+        .from_str(&ron_str)
+        .with_context(|| {
+            "Failed to parse RON config. Check syntax and structure:\n\
+             - Ensure all fields are properly formatted\n\
+             - Check for missing commas\n\
+             - Verify enum variants match expected values"
+        })?;
 
     // Basic validation
-    if config.presets.is_empty() {
+    if config.is_empty() {
         bail!("Validation failed: No presets defined in configuration");
     }
 
     println!("\n{}", "Configuration is valid!".green().bold());
-    println!("  Presets: {}", config.presets.len());
+    println!("  Presets: {}", config.len());
 
-    for (idx, preset) in config.presets.iter().enumerate() {
+    for (idx, preset) in config.iter().enumerate() {
         let preset_name = match preset {
             crate::config::PresetChoice::PythonApp(_) => "Python",
             crate::config::PresetChoice::Rust(_) => "Rust",

@@ -6,11 +6,8 @@ pub use crate::presets::python::app::PythonAppConfig;
 pub use crate::presets::go::app::GoAppConfig;
 pub use crate::presets::docker::preset::DockerConfig;
 
-/// Top-level CCI configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CciConfig {
-    pub presets: Vec<PresetChoice>,
-}
+/// Top-level CCI configuration - just an array of presets
+pub type CciConfig = Vec<PresetChoice>;
 
 /// Preset choice enum - supports all available presets
 #[derive(Debug, Clone, Serialize, Deserialize)]

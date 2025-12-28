@@ -97,8 +97,29 @@ fn generate_features_method(fields: &[PresetFieldOpts]) -> TokenStream {
                 let default_expr: TokenStream = default_str.parse().unwrap();
                 match field_ty {
                     syn::Type::Path(type_path) => {
-                        let type_str = quote!(#type_path).to_string();
-                        if type_str.contains("String") {
+                        let type_str = quote!(#type_path).to_string().replace(" ", "");
+                        if type_str.starts_with("Option<") {
+                            // Extract inner type from Option<T>
+                            let inner_type_start = type_str.find('<').unwrap() + 1;
+                            let inner_type_end = type_str.rfind('>').unwrap();
+                            let inner_type_str = &type_str[inner_type_start..inner_type_end];
+                            let inner_type = syn::parse_str::<syn::Type>(inner_type_str).unwrap();
+
+                            // Option<EnumType> - include "none" variant
+                            quote! {
+                                crate::editor::config::OptionValue::Enum {
+                                    selected: {
+                                        let opt_val: #field_ty = #default_expr;
+                                        opt_val.as_ref().map(|v| v.as_str().to_string()).unwrap_or_else(|| "none".to_string())
+                                    },
+                                    variants: {
+                                        let mut v = vec!["none".to_string()];
+                                        v.extend(#inner_type::all_variants().iter().map(|s| s.to_string()));
+                                        v
+                                    },
+                                }
+                            }
+                        } else if type_str.contains("String") {
                             quote! {
                                 crate::editor::config::OptionValue::String(#default_expr)
                             }
@@ -170,8 +191,31 @@ fn generate_default_config_method(preset_id: &str, fields: &[PresetFieldOpts]) -
             let default_expr: TokenStream = default_str.parse().unwrap();
             match field_ty {
                 syn::Type::Path(type_path) => {
-                    let type_str = quote!(#type_path).to_string();
-                    if type_str.contains("String") {
+                    let type_str = quote!(#type_path).to_string().replace(" ", "");
+                    if type_str.starts_with("Option<") {
+                        // Extract inner type from Option<T>
+                        let inner_type_start = type_str.find('<').unwrap() + 1;
+                        let inner_type_end = type_str.rfind('>').unwrap();
+                        let inner_type_str = &type_str[inner_type_start..inner_type_end];
+                        let inner_type = syn::parse_str::<syn::Type>(inner_type_str).unwrap();
+
+                        // Option<EnumType> - include "none" variant
+                        quote! {
+                            crate::editor::config::OptionValue::Enum {
+                                selected: if detected {
+                                    let opt_val: #field_ty = #default_expr;
+                                    opt_val.as_ref().map(|v| v.as_str().to_string()).unwrap_or_else(|| "none".to_string())
+                                } else {
+                                    "none".to_string()
+                                },
+                                variants: {
+                                    let mut v = vec!["none".to_string()];
+                                    v.extend(#inner_type::all_variants().iter().map(|s| s.to_string()));
+                                    v
+                                },
+                            }
+                        }
+                    } else if type_str.contains("String") {
                         quote! {
                             crate::editor::config::OptionValue::String(#default_expr)
                         }

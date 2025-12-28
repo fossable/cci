@@ -8,6 +8,13 @@ use ratatui::{
     Frame,
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DiffType {
+    Unchanged,
+    Added,
+    Removed,
+}
+
 pub fn render_ui(f: &mut Frame, state: &EditorState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -246,8 +253,12 @@ fn render_preview_panel(f: &mut Frame, area: Rect, state: &EditorState) {
             .wrap(Wrap { trim: true })
             .scroll((state.preview_scroll, 0))
     } else {
-        // Apply syntax highlighting to YAML
-        let lines = highlight_yaml(&state.yaml_preview);
+        // Apply syntax highlighting to YAML with diff support
+        let lines = if let Some(existing) = &state.existing_yaml {
+            highlight_yaml_with_diff(&state.yaml_preview, existing)
+        } else {
+            highlight_yaml(&state.yaml_preview)
+        };
         Paragraph::new(lines)
             .wrap(Wrap { trim: false })
             .scroll((state.preview_scroll, 0))
@@ -317,6 +328,201 @@ fn render_platform_menu(f: &mut Frame, state: &EditorState) {
         );
 
     f.render_widget(list, menu_area);
+}
+
+/// Compute a simple line-based diff between old and new text
+fn compute_diff(old: &str, new: &str) -> Vec<(String, DiffType)> {
+    let old_lines: Vec<&str> = old.lines().collect();
+    let new_lines: Vec<&str> = new.lines().collect();
+
+    let mut result = Vec::new();
+    let mut old_idx = 0;
+    let mut new_idx = 0;
+
+    while old_idx < old_lines.len() || new_idx < new_lines.len() {
+        if old_idx >= old_lines.len() {
+            // Remaining lines are added
+            result.push((new_lines[new_idx].to_string(), DiffType::Added));
+            new_idx += 1;
+        } else if new_idx >= new_lines.len() {
+            // Remaining lines are removed
+            result.push((old_lines[old_idx].to_string(), DiffType::Removed));
+            old_idx += 1;
+        } else if old_lines[old_idx] == new_lines[new_idx] {
+            // Lines match
+            result.push((new_lines[new_idx].to_string(), DiffType::Unchanged));
+            old_idx += 1;
+            new_idx += 1;
+        } else {
+            // Lines differ - look ahead to see if we can find a match
+            let mut found_match = false;
+
+            // Look ahead in new for current old line (removed line)
+            for i in (new_idx + 1)..(new_idx + 5).min(new_lines.len()) {
+                if old_lines[old_idx] == new_lines[i] {
+                    // Found old line later in new, so lines between are added
+                    while new_idx < i {
+                        result.push((new_lines[new_idx].to_string(), DiffType::Added));
+                        new_idx += 1;
+                    }
+                    found_match = true;
+                    break;
+                }
+            }
+
+            if !found_match {
+                // Look ahead in old for current new line (added line)
+                for i in (old_idx + 1)..(old_idx + 5).min(old_lines.len()) {
+                    if old_lines[i] == new_lines[new_idx] {
+                        // Found new line later in old, so lines between are removed
+                        while old_idx < i {
+                            result.push((old_lines[old_idx].to_string(), DiffType::Removed));
+                            old_idx += 1;
+                        }
+                        found_match = true;
+                        break;
+                    }
+                }
+            }
+
+            if !found_match {
+                // No match found, treat as changed (removed + added)
+                result.push((old_lines[old_idx].to_string(), DiffType::Removed));
+                result.push((new_lines[new_idx].to_string(), DiffType::Added));
+                old_idx += 1;
+                new_idx += 1;
+            }
+        }
+    }
+
+    result
+}
+
+/// Highlight YAML with diff information
+fn highlight_yaml_with_diff(new_yaml: &str, old_yaml: &str) -> Vec<Line<'static>> {
+    let diff = compute_diff(old_yaml, new_yaml);
+    let mut lines = Vec::new();
+
+    for (line_text, diff_type) in diff {
+        let bg_color = match diff_type {
+            DiffType::Added => Some(Color::Green),
+            DiffType::Removed => Some(Color::Red),
+            DiffType::Unchanged => None,
+        };
+
+        // Apply YAML syntax highlighting to the line
+        let highlighted_line = highlight_yaml_line_owned(line_text, bg_color);
+        lines.push(highlighted_line);
+    }
+
+    lines
+}
+
+/// Highlight a single YAML line with optional background color (owned version for diff)
+fn highlight_yaml_line_owned(line: String, bg_color: Option<Color>) -> Line<'static> {
+    let trimmed_start = line.trim_start();
+
+    if trimmed_start.is_empty() {
+        return Line::from("");
+    }
+
+    // Comment lines
+    if trimmed_start.starts_with('#') {
+        let mut style = Style::default().fg(Color::DarkGray);
+        if let Some(bg) = bg_color {
+            style = style.bg(bg);
+        }
+        return Line::from(Span::styled(line, style));
+    }
+
+    // Parse the line into spans
+    let mut spans = Vec::new();
+    let indent = line.len() - trimmed_start.len();
+
+    // Add indentation
+    if indent > 0 {
+        let mut style = Style::default();
+        if let Some(bg) = bg_color {
+            style = style.bg(bg);
+        }
+        spans.push(Span::styled(" ".repeat(indent), style));
+    }
+
+    // Key-value pairs
+    if let Some(colon_pos) = trimmed_start.find(':') {
+        let key = trimmed_start[..colon_pos].to_string();
+        let rest = &trimmed_start[colon_pos..];
+
+        // Key (cyan)
+        let mut key_style = Style::default().fg(Color::Cyan);
+        if let Some(bg) = bg_color {
+            key_style = key_style.bg(bg);
+        }
+        spans.push(Span::styled(key, key_style));
+
+        // Colon
+        let mut colon_style = Style::default();
+        if let Some(bg) = bg_color {
+            colon_style = colon_style.bg(bg);
+        }
+        spans.push(Span::styled(":".to_string(), colon_style));
+
+        if rest.len() > 1 {
+            let value = rest[1..].trim_start();
+
+            // Space before value
+            let mut space_style = Style::default();
+            if let Some(bg) = bg_color {
+                space_style = space_style.bg(bg);
+            }
+            spans.push(Span::styled(" ".to_string(), space_style));
+
+            // Check for special values
+            let mut value_style = if value.starts_with('"') || value.starts_with('\'') {
+                // String value (green)
+                Style::default().fg(Color::Green)
+            } else if value == "true" || value == "false" {
+                // Boolean (magenta)
+                Style::default().fg(Color::Magenta)
+            } else if value.parse::<f64>().is_ok() {
+                // Number (yellow)
+                Style::default().fg(Color::Yellow)
+            } else {
+                // Other value
+                Style::default()
+            };
+
+            if let Some(bg) = bg_color {
+                value_style = value_style.bg(bg);
+            }
+
+            if !value.is_empty() {
+                spans.push(Span::styled(value.to_string(), value_style));
+            }
+        }
+    } else if trimmed_start.starts_with("- ") {
+        // List item
+        let mut bullet_style = Style::default().fg(Color::Yellow);
+        if let Some(bg) = bg_color {
+            bullet_style = bullet_style.bg(bg);
+        }
+        spans.push(Span::styled("- ".to_string(), bullet_style));
+
+        let mut text_style = Style::default();
+        if let Some(bg) = bg_color {
+            text_style = text_style.bg(bg);
+        }
+        spans.push(Span::styled(trimmed_start[2..].to_string(), text_style));
+    } else {
+        // Other lines
+        let mut style = Style::default();
+        if let Some(bg) = bg_color {
+            style = style.bg(bg);
+        }
+        spans.push(Span::styled(trimmed_start.to_string(), style));
+    }
+
+    Line::from(spans)
 }
 
 fn highlight_yaml(yaml: &str) -> Vec<Line<'_>> {
@@ -433,7 +639,7 @@ fn render_footer(f: &mut Frame, area: Rect, state: &EditorState) {
             Span::raw(" scroll preview | "),
             Span::styled("p", Style::default().fg(Color::Cyan)),
             Span::raw(" platform | "),
-            Span::styled("Ctrl+W", Style::default().fg(Color::Green)),
+            Span::styled("W", Style::default().fg(Color::Green)),
             Span::raw(" write | "),
             Span::styled("q", Style::default().fg(Color::Red)),
             Span::raw(" quit"),

@@ -41,11 +41,6 @@ impl EditorApp {
         execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
         terminal.show_cursor()?;
 
-        // Write file if requested
-        if self.state.should_write && result.is_ok() {
-            self.write_config()?;
-        }
-
         result
     }
 
@@ -59,6 +54,12 @@ impl EditorApp {
                 if let Event::Key(key) = event::read()? {
                     handle_key_event(&mut self.state, key);
                 }
+            }
+
+            // Write CI config if requested
+            if self.state.should_write {
+                self.write_config()?;
+                self.state.should_write = false; // Reset the flag so we don't keep writing
             }
 
             // Check for exit

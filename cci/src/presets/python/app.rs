@@ -13,32 +13,32 @@ use std::collections::BTreeMap;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, PresetEnum)]
 #[preset_enum(default = "Flake8")]
 #[serde(rename_all = "lowercase")]
-pub enum PythonLinterTool {
+pub enum PythonLinter {
     #[preset_variant(id = "flake8", display = "Flake8")]
     Flake8,
     #[preset_variant(id = "ruff", display = "Ruff")]
     Ruff,
 }
 
-impl PythonLinterTool {
+impl PythonLinter {
     pub fn name(&self) -> &'static str {
         match self {
-            PythonLinterTool::Flake8 => "flake8",
-            PythonLinterTool::Ruff => "ruff",
+            PythonLinter::Flake8 => "flake8",
+            PythonLinter::Ruff => "ruff",
         }
     }
 
     pub fn check_command(&self) -> &'static str {
         match self {
-            PythonLinterTool::Flake8 => "flake8 .",
-            PythonLinterTool::Ruff => "ruff check .",
+            PythonLinter::Flake8 => "flake8 .",
+            PythonLinter::Ruff => "ruff check .",
         }
     }
 
     pub fn toggle(&self) -> Self {
         match self {
-            PythonLinterTool::Flake8 => PythonLinterTool::Ruff,
-            PythonLinterTool::Ruff => PythonLinterTool::Flake8,
+            PythonLinter::Flake8 => PythonLinter::Ruff,
+            PythonLinter::Ruff => PythonLinter::Flake8,
         }
     }
 }
@@ -47,32 +47,32 @@ impl PythonLinterTool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, PresetEnum)]
 #[preset_enum(default = "Black")]
 #[serde(rename_all = "lowercase")]
-pub enum PythonFormatterTool {
+pub enum PythonFormatter {
     #[preset_variant(id = "black", display = "Black")]
     Black,
     #[preset_variant(id = "ruff", display = "Ruff")]
     Ruff,
 }
 
-impl PythonFormatterTool {
+impl PythonFormatter {
     pub fn name(&self) -> &'static str {
         match self {
-            PythonFormatterTool::Black => "black",
-            PythonFormatterTool::Ruff => "ruff",
+            PythonFormatter::Black => "black",
+            PythonFormatter::Ruff => "ruff",
         }
     }
 
     pub fn check_command(&self) -> &'static str {
         match self {
-            PythonFormatterTool::Black => "black --check .",
-            PythonFormatterTool::Ruff => "ruff format --check .",
+            PythonFormatter::Black => "black --check .",
+            PythonFormatter::Ruff => "ruff format --check .",
         }
     }
 
     pub fn toggle(&self) -> Self {
         match self {
-            PythonFormatterTool::Black => PythonFormatterTool::Ruff,
-            PythonFormatterTool::Ruff => PythonFormatterTool::Black,
+            PythonFormatter::Black => PythonFormatter::Ruff,
+            PythonFormatter::Ruff => PythonFormatter::Black,
         }
     }
 }
@@ -94,24 +94,15 @@ pub struct PythonAppPreset {
     python_version: String,
 
     #[preset_field(
+        ron_field = "linter",
         feature = "linting",
         feature_display = "Linting",
         feature_description = "Code quality checks with configurable tools",
-        display = "Enable Linter",
-        description = "Run linting checks on code",
-        default = "true"
+        display = "Linter",
+        description = "Choose linter tool (None, Flake8, or Ruff)",
+        default = "None"
     )]
-    enable_linter: bool,
-
-    #[preset_field(
-        feature = "linting",
-        feature_display = "Linting",
-        feature_description = "Code quality checks with configurable tools",
-        display = "Linter Tool",
-        description = "Choose between Flake8 or Ruff for linting",
-        default = "PythonLinterTool::Flake8"
-    )]
-    linter_tool: PythonLinterTool,
+    linter: Option<PythonLinter>,
 
     #[preset_field(
         id = "type_check",
@@ -125,36 +116,24 @@ pub struct PythonAppPreset {
     enable_type_check: bool,
 
     #[preset_field(
-        id = "enable_formatter",
+        ron_field = "formatter",
         feature = "formatting",
         feature_display = "Formatting",
         feature_description = "Code formatting checks",
-        display = "Enable Formatter",
-        description = "Check code formatting compliance",
-        default = "true"
+        display = "Formatter",
+        description = "Choose formatter tool (None, Black, or Ruff)",
+        default = "None"
     )]
-    enable_formatter_check: bool,
-
-    #[preset_field(
-        feature = "formatting",
-        feature_display = "Formatting",
-        feature_description = "Code formatting checks",
-        display = "Formatter Tool",
-        description = "Choose between Black or Ruff for formatting",
-        default = "PythonFormatterTool::Black"
-    )]
-    formatter_tool: PythonFormatterTool,
+    formatter: Option<PythonFormatter>,
 }
 
 impl PythonAppPreset {
     /// Constant default instance for registry initialization
     pub const DEFAULT: Self = Self {
         python_version: String::new(),
-        enable_linter: false,
-        linter_tool: PythonLinterTool::Flake8,
+        linter: None,
         enable_type_check: false,
-        enable_formatter_check: false,
-        formatter_tool: PythonFormatterTool::Black,
+        formatter: None,
     };
 }
 
@@ -209,9 +188,9 @@ impl ToGitHub for PythonAppPreset {
         );
 
         // Lint job (optional)
-        if self.enable_linter {
-            let linter_name = self.linter_tool.name();
-            let linter_cmd = self.linter_tool.check_command();
+        if let Some(linter) = &self.linter {
+            let linter_name = linter.name();
+            let linter_cmd = linter.check_command();
 
             jobs.insert(
                 "python/lint".to_string(),
@@ -343,9 +322,9 @@ impl ToGitLab for PythonAppPreset {
 
         let mut script = vec!["pip install -r requirements.txt".to_string(), "pytest".to_string()];
 
-        if self.enable_linter {
-            script.insert(1, format!("pip install {}", self.linter_tool.name()));
-            script.insert(2, self.linter_tool.check_command().to_string());
+        if let Some(linter) = &self.linter {
+            script.insert(1, format!("pip install {}", linter.name()));
+            script.insert(2, linter.check_command().to_string());
         }
 
         if self.enable_type_check {
@@ -353,9 +332,9 @@ impl ToGitLab for PythonAppPreset {
             script.insert(2, "mypy .".to_string());
         }
 
-        if self.enable_formatter_check {
-            script.insert(1, format!("pip install {}", self.formatter_tool.name()));
-            script.insert(2, self.formatter_tool.check_command().to_string());
+        if let Some(formatter) = &self.formatter {
+            script.insert(1, format!("pip install {}", formatter.name()));
+            script.insert(2, formatter.check_command().to_string());
         }
 
         jobs.insert(
@@ -398,17 +377,17 @@ impl ToCircleCI for PythonAppPreset {
             },
         ];
 
-        if self.enable_linter {
+        if let Some(linter) = &self.linter {
             steps.push(CircleCIStep::Command {
                 run: CircleCIRun::Detailed {
-                    name: format!("Install {}", self.linter_tool.name()),
-                    command: format!("pip install {}", self.linter_tool.name()),
+                    name: format!("Install {}", linter.name()),
+                    command: format!("pip install {}", linter.name()),
                 },
             });
             steps.push(CircleCIStep::Command {
                 run: CircleCIRun::Detailed {
                     name: "Lint".to_string(),
-                    command: self.linter_tool.check_command().to_string(),
+                    command: linter.check_command().to_string(),
                 },
             });
         }
@@ -428,17 +407,17 @@ impl ToCircleCI for PythonAppPreset {
             });
         }
 
-        if self.enable_formatter_check {
+        if let Some(formatter) = &self.formatter {
             steps.push(CircleCIStep::Command {
                 run: CircleCIRun::Detailed {
-                    name: format!("Install {}", self.formatter_tool.name()),
-                    command: format!("pip install {}", self.formatter_tool.name()),
+                    name: format!("Install {}", formatter.name()),
+                    command: format!("pip install {}", formatter.name()),
                 },
             });
             steps.push(CircleCIStep::Command {
                 run: CircleCIRun::Detailed {
                     name: "Format check".to_string(),
-                    command: self.formatter_tool.check_command().to_string(),
+                    command: formatter.check_command().to_string(),
                 },
             });
         }
@@ -486,8 +465,8 @@ impl ToJenkins for PythonAppPreset {
             test_steps.push("sh 'mypy .'".to_string());
         }
 
-        if self.enable_linter {
-            test_steps.push("sh 'flake8 .'".to_string());
+        if let Some(linter) = &self.linter {
+            test_steps.push(format!("sh '{}'", linter.check_command()));
         }
 
         test_steps.push("sh 'pytest'".to_string());

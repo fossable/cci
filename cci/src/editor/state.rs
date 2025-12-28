@@ -82,6 +82,9 @@ pub struct EditorState {
     pub yaml_preview: String,
     pub generation_error: Option<String>,
 
+    // Existing YAML for diff
+    pub existing_yaml: Option<String>,
+
     // UI info
     pub current_item_description: String,
 
@@ -136,6 +139,10 @@ impl EditorState {
             }
         }
 
+        // Try to load existing YAML file
+        let output_path = working_dir.join(target_platform.output_path());
+        let existing_yaml = std::fs::read_to_string(&output_path).ok();
+
         let mut state = Self {
             project_type,
             language_version,
@@ -152,6 +159,7 @@ impl EditorState {
             preview_scroll: 0,
             yaml_preview: String::new(),
             generation_error: None,
+            existing_yaml,
             current_item_description: String::new(),
             should_quit: false,
             should_write: false,
@@ -304,6 +312,7 @@ impl EditorState {
             }
         }
         self.regenerate_yaml();
+        self.auto_save_ron();
     }
 
     pub fn cycle_platform(&mut self) {
@@ -311,7 +320,13 @@ impl EditorState {
         let current_index = platforms.iter().position(|&p| p == self.target_platform).unwrap_or(0);
         let next_index = (current_index + 1) % platforms.len();
         self.target_platform = platforms[next_index];
+
+        // Reload existing YAML for the new platform
+        let output_path = self.working_dir.join(self.target_platform.output_path());
+        self.existing_yaml = std::fs::read_to_string(&output_path).ok();
+
         self.regenerate_yaml();
+        self.auto_save_ron();
     }
 
     pub fn toggle_preset(&mut self, preset_id: &str) {
@@ -339,6 +354,7 @@ impl EditorState {
         }
 
         self.regenerate_yaml();
+        self.auto_save_ron();
     }
 
     pub fn open_platform_menu(&mut self) {
@@ -353,7 +369,13 @@ impl EditorState {
         let platforms = Platform::all();
         if let Some(&platform) = platforms.get(self.platform_menu_cursor) {
             self.target_platform = platform;
+
+            // Reload existing YAML for the new platform
+            let output_path = self.working_dir.join(self.target_platform.output_path());
+            self.existing_yaml = std::fs::read_to_string(&output_path).ok();
+
             self.regenerate_yaml();
+            self.auto_save_ron();
         }
         self.platform_menu_open = false;
     }
@@ -409,22 +431,31 @@ impl EditorState {
         let ron_str = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read RON file: {}", path.display()))?;
 
-        let ron_config: CciConfig = ron::from_str(&ron_str)
+        let ron_config: CciConfig = ron::Options::default()
+            .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
+            .from_str(&ron_str)
             .with_context(|| "Failed to parse RON configuration")?;
 
         let registry = Arc::new(build_registry());
         let mut preset_configs = HashMap::new();
 
-        for preset_choice in ron_config.presets {
+        for preset_choice in ron_config {
             let (preset_id, config) = preset_choice_to_config(&preset_choice);
             preset_configs.insert(preset_id, config);
         }
 
+        let working_dir = path.parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+        let target_platform = Platform::GitHub; // Default platform
+
+        // Try to load existing YAML file
+        let output_path = working_dir.join(target_platform.output_path());
+        let existing_yaml = std::fs::read_to_string(&output_path).ok();
+
         let mut state = Self {
             project_type: ProjectType::PythonApp, // Default, doesn't affect RON-loaded config
             language_version: "stable".to_string(),
-            working_dir: path.parent().unwrap_or(std::path::Path::new(".")).to_path_buf(),
-            target_platform: Platform::GitHub, // Default platform
+            working_dir,
+            target_platform,
             registry,
             preset_configs,
             expanded_presets: HashSet::new(),
@@ -436,6 +467,7 @@ impl EditorState {
             preview_scroll: 0,
             yaml_preview: String::new(),
             generation_error: None,
+            existing_yaml,
             current_item_description: String::new(),
             should_quit: false,
             should_write: false,
@@ -449,18 +481,16 @@ impl EditorState {
 
     /// Export current TUI state to RON configuration
     pub fn export_to_ron(&self) -> Result<String> {
-        use crate::config::{preset_config_to_choice, CciConfig};
+        use crate::config::preset_config_to_choice;
 
-        let mut presets = Vec::new();
+        let mut ron_config = Vec::new();
 
         for (preset_id, config) in &self.preset_configs {
             if self.has_any_options_enabled(config) {
                 let preset_choice = preset_config_to_choice(preset_id, config);
-                presets.push(preset_choice);
+                ron_config.push(preset_choice);
             }
         }
-
-        let ron_config = CciConfig { presets };
 
         let pretty_config = ron::ser::PrettyConfig::new()
             .depth_limit(4)
@@ -484,13 +514,20 @@ impl EditorState {
 
         Ok(())
     }
+
+    /// Automatically save the current state to cci.ron in the working directory
+    pub fn auto_save_ron(&self) {
+        let cci_ron_path = self.working_dir.join("cci.ron");
+
+        // Silently attempt to save - don't panic on errors
+        let _ = self.save_to_ron_file(&cci_ron_path);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::collections::HashMap;
-    use std::fs;
     use tempfile::tempdir;
 
     #[test]

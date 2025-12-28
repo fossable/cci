@@ -14,5 +14,5 @@ pub mod rust {
 // Export preset structs
 pub use docker::preset::{DockerPreset, DockerRegistry};
 pub use go::app::GoAppPreset;
-pub use python::app::{PythonAppPreset, PythonFormatterTool, PythonLinterTool};
+pub use python::app::{PythonAppPreset, PythonFormatter, PythonLinter};
 pub use rust::preset::RustPreset;

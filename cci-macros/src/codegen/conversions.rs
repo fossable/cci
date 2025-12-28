@@ -56,6 +56,24 @@ fn generate_from_config(
                         quote! {
                             #field_ident: Default::default()
                         }
+                    } else if type_str.starts_with("Option<") {
+                        // Extract inner type from Option<T>
+                        let inner_type_start = type_str.find('<').unwrap() + 1;
+                        let inner_type_end = type_str.rfind('>').unwrap();
+                        let inner_type_str = &type_str[inner_type_start..inner_type_end];
+                        let inner_type = syn::parse_str::<syn::Type>(inner_type_str).unwrap();
+
+                        // For Option<EnumType>, use get_enum and map to from_str
+                        quote! {
+                            #field_ident: {
+                                let value: #field_ty = match config.get_enum(#option_id).as_deref() {
+                                    Some("none") => None,
+                                    Some(s) => #inner_type::from_str(s),
+                                    None => None,
+                                };
+                                value
+                            }
+                        }
                     } else if type_str == "String" {
                         quote! {
                             #field_ident: config.get_string(#option_id).unwrap_or_else(|| "".to_string())
@@ -65,7 +83,7 @@ fn generate_from_config(
                             #field_ident: config.get_bool(#option_id)
                         }
                     } else {
-                        // Assume it's an enum with from_str
+                        // Assume it's an enum with from_str method
                         quote! {
                             #field_ident: config.get_enum(#option_id)
                                 .and_then(|s| #field_ty::from_str(&s))
@@ -128,6 +146,33 @@ fn generate_ron_to_preset_config(
                 if type_str.starts_with("Vec") {
                     // Skip Vec types - they're not exposed in PresetConfig
                     None
+                } else if type_str.starts_with("Option<") {
+                    // Extract inner type from Option<T>
+                    // We need to get the inner enum type to call all_variants()
+                    // Parse the inner type name from "Option < EnumType >"
+                    let inner_type_start = type_str.find('<').unwrap() + 1;
+                    let inner_type_end = type_str.rfind('>').unwrap();
+                    let inner_type_str = &type_str[inner_type_start..inner_type_end];
+                    let inner_type = syn::parse_str::<syn::Type>(inner_type_str).unwrap();
+
+                    Some(quote! {
+                        if let Some(ref value) = ron.#ron_field_name {
+                            config.set(#option_id.to_string(), crate::editor::config::OptionValue::Enum {
+                                selected: value.as_str().to_string(),
+                                variants: #inner_type::all_variants().iter().map(|s| s.to_string()).collect(),
+                            });
+                        } else {
+                            // Set with empty selection for None
+                            config.set(#option_id.to_string(), crate::editor::config::OptionValue::Enum {
+                                selected: "none".to_string(),
+                                variants: {
+                                    let mut v = vec!["none".to_string()];
+                                    v.extend(#inner_type::all_variants().iter().map(|s| s.to_string()));
+                                    v
+                                },
+                            });
+                        }
+                    })
                 } else if type_str == "String" {
                     Some(quote! {
                         config.set(#option_id.to_string(), crate::editor::config::OptionValue::String(ron.#ron_field_name.clone()));
@@ -214,6 +259,21 @@ fn generate_preset_config_to_ron(
                         // Vec types use default value
                         quote! {
                             #ron_field_name: #default_val
+                        }
+                    } else if type_str.starts_with("Option<") {
+                        // Extract inner type from Option<T>
+                        let inner_type_start = type_str.find('<').unwrap() + 1;
+                        let inner_type_end = type_str.rfind('>').unwrap();
+                        let inner_type_str = &type_str[inner_type_start..inner_type_end];
+                        let inner_type = syn::parse_str::<syn::Type>(inner_type_str).unwrap();
+
+                        // Option<EnumType>
+                        quote! {
+                            #ron_field_name: match config.get_enum(#option_id).as_deref() {
+                                Some("none") => None,
+                                Some(s) => #inner_type::from_str(s),
+                                None => #default_val,
+                            }
                         }
                     } else if type_str == "String" {
                         quote! {
