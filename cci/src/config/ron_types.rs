@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 // Re-export the generated config types from presets
-pub use crate::presets::rust::preset::RustConfig;
-pub use crate::presets::python::app::PythonAppConfig;
-pub use crate::presets::go::app::GoAppConfig;
-pub use crate::presets::docker::preset::DockerConfig;
+pub use crate::presets::{RustConfig, PythonAppConfig, GoAppConfig, DockerConfig};
 
 /// Top-level CCI configuration - just an array of presets
 pub type CciConfig = Vec<PresetChoice>;
@@ -22,10 +19,7 @@ pub enum PresetChoice {
 impl PresetChoice {
     /// Convert a PresetChoice to a PresetConfig using the generated conversion methods
     pub fn to_preset_config(&self) -> (String, crate::editor::config::PresetConfig) {
-        use crate::presets::rust::preset::RustPreset;
-        use crate::presets::python::app::PythonAppPreset;
-        use crate::presets::go::app::GoAppPreset;
-        use crate::presets::docker::preset::DockerPreset;
+        use crate::presets::{RustPreset, PythonAppPreset, GoAppPreset, DockerPreset};
 
         match self {
             PresetChoice::Rust(config) => {
@@ -51,10 +45,7 @@ pub fn preset_choice_to_config(choice: &PresetChoice) -> (String, crate::editor:
 
 /// Convert a (preset_id, PresetConfig) tuple to a PresetChoice
 pub fn preset_config_to_choice(preset_id: &str, config: &crate::editor::config::PresetConfig) -> PresetChoice {
-    use crate::presets::rust::preset::RustPreset;
-    use crate::presets::python::app::PythonAppPreset;
-    use crate::presets::go::app::GoAppPreset;
-    use crate::presets::docker::preset::DockerPreset;
+    use crate::presets::{RustPreset, PythonAppPreset, GoAppPreset, DockerPreset};
 
     match preset_id {
         "rust" => PresetChoice::Rust(RustPreset::preset_config_to_ron(config)),
