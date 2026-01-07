@@ -20,7 +20,14 @@ pub struct EditorApp {
 impl EditorApp {
     pub fn new(detection: DetectionResult, platform: Option<String>) -> Result<Self> {
         let working_dir = PathBuf::from(".");
-        let state = EditorState::from_detection(detection, platform, working_dir)?;
+
+        // Check if cci.ron exists, if so, load from it
+        let cci_ron_path = working_dir.join("cci.ron");
+        let state = if cci_ron_path.exists() {
+            EditorState::from_ron_file(&cci_ron_path)?
+        } else {
+            EditorState::from_detection(detection, platform, working_dir)?
+        };
 
         Ok(Self { state })
     }
@@ -44,7 +51,10 @@ impl EditorApp {
         result
     }
 
-    fn event_loop<B: ratatui::backend::Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
+    fn event_loop<B: ratatui::backend::Backend>(
+        &mut self,
+        terminal: &mut Terminal<B>,
+    ) -> Result<()> {
         loop {
             // Render
             terminal.draw(|f| render_ui(f, &self.state))?;
@@ -74,7 +84,10 @@ impl EditorApp {
     fn write_config(&self) -> Result<()> {
         use std::fs;
 
-        let output_path = self.state.working_dir.join(self.state.target_platform.output_path());
+        let output_path = self
+            .state
+            .working_dir
+            .join(self.state.target_platform.output_path());
 
         // Create parent directories
         if let Some(parent) = output_path.parent() {

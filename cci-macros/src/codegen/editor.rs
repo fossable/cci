@@ -1,12 +1,9 @@
+use crate::preset::{PresetFieldOpts, PresetOpts};
 use proc_macro2::TokenStream;
 use quote::quote;
 use std::collections::HashMap;
-use crate::preset::{PresetOpts, PresetFieldOpts};
 
-pub fn generate_editor_preset_impl(
-    opts: &PresetOpts,
-    fields: &[PresetFieldOpts],
-) -> TokenStream {
+pub fn generate_editor_preset_impl(opts: &PresetOpts, fields: &[PresetFieldOpts]) -> TokenStream {
     let preset_ident = &opts.ident;
     let preset_id = &opts.id;
     let preset_name = &opts.name;
@@ -60,7 +57,10 @@ fn generate_features_method(fields: &[PresetFieldOpts]) -> TokenStream {
         }
 
         if let Some(ref feature_id) = field.feature {
-            features_map.entry(feature_id.clone()).or_insert_with(Vec::new).push(field);
+            features_map
+                .entry(feature_id.clone())
+                .or_insert_with(Vec::new)
+                .push(field);
         }
     }
 
@@ -71,18 +71,13 @@ fn generate_features_method(fields: &[PresetFieldOpts]) -> TokenStream {
         let feature_display = first_field.feature_display.as_ref()
             .map(|s| s.as_str())
             .unwrap_or(feature_id.as_str());
-        let feature_description = first_field.feature_description.as_ref()
-            .map(|s| s.as_str())
-            .unwrap_or("");
 
         // Generate OptionMeta for each field in the feature
         let option_metas = feature_fields.iter().map(|field| {
             let field_ident = field.ident.as_ref().unwrap();
             let field_ty = &field.ty;
 
-            let option_id = field.id.as_ref()
-                .map(|s| s.clone())
-                .unwrap_or_else(|| field_ident.to_string());
+            let option_id = field_ident.to_string();
 
             let display_name = field.display.as_ref()
                 .map(|s| s.as_str())
@@ -158,7 +153,7 @@ fn generate_features_method(fields: &[PresetFieldOpts]) -> TokenStream {
             crate::editor::config::FeatureMeta {
                 id: #feature_id.to_string(),
                 display_name: #feature_display.to_string(),
-                description: #feature_description.to_string(),
+                description: String::new(),
                 options: vec![
                     #(#option_metas),*
                 ],
@@ -183,9 +178,7 @@ fn generate_default_config_method(preset_id: &str, fields: &[PresetFieldOpts]) -
         }
 
         let field_ty = &field.ty;
-        let option_id = field.id.as_ref()
-            .map(|s| s.clone())
-            .unwrap_or_else(|| field.ident.as_ref().unwrap().to_string());
+        let option_id = field.ident.as_ref().unwrap().to_string();
 
         let default_value = if let Some(ref default_str) = field.default {
             let default_expr: TokenStream = default_str.parse().unwrap();

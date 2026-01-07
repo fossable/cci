@@ -1,7 +1,7 @@
 use crate::editor::state::Platform;
 use crate::error::Result;
 use crate::platforms::jenkins::models::JenkinsConfig;
-use crate::traits::{ToCircleCI, ToGitHub, ToGitea, ToGitLab, ToJenkins};
+use crate::traits::{ToCircleCI, ToGitHub, ToGitLab, ToGitea, ToJenkins};
 
 /// Generate CI configuration for the specified platform
 ///

@@ -63,9 +63,10 @@ pub fn derive_preset_enum_impl(input: TokenStream) -> TokenStream {
 
     // Generate Default implementation
     let default_impl = if let Some(ref default_name) = opts.default {
-        let default_variant = variants.iter().find(|v| {
-            v.ident.to_string() == *default_name
-        }).expect("Default variant not found");
+        let default_variant = variants
+            .iter()
+            .find(|v| v.ident.to_string() == *default_name)
+            .expect("Default variant not found");
         let default_ident = &default_variant.ident;
         quote! {
             impl Default for #enum_name {

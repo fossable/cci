@@ -17,8 +17,8 @@ impl ProjectDetector for RustDetector {
 
         // Try to parse Cargo.toml
         let contents = fs::read_to_string(&cargo_toml_path)?;
-        let manifest = Manifest::from_str(&contents)
-            .map_err(|e| cargo_toml_error(e.to_string()))?;
+        let manifest =
+            Manifest::from_str(&contents).map_err(|e| cargo_toml_error(e.to_string()))?;
 
         let mut metadata = HashMap::new();
 
@@ -73,9 +73,12 @@ fn has_library(manifest: &Manifest) -> bool {
 }
 
 fn has_binary(manifest: &Manifest) -> bool {
-    !manifest.bin.is_empty() || manifest.package.as_ref()
-        .and_then(|p| p.default_run.as_ref())
-        .is_some()
+    !manifest.bin.is_empty()
+        || manifest
+            .package
+            .as_ref()
+            .and_then(|p| p.default_run.as_ref())
+            .is_some()
 }
 
 fn extract_rust_version(_manifest: &Manifest) -> Option<String> {
@@ -94,7 +97,9 @@ mod tests {
         let dir = tempdir().unwrap();
         let cargo_toml = dir.path().join("Cargo.toml");
 
-        fs::write(&cargo_toml, r#"
+        fs::write(
+            &cargo_toml,
+            r#"
 [package]
 name = "test-lib"
 version = "0.1.0"
@@ -102,7 +107,9 @@ edition = "2021"
 
 [lib]
 name = "test_lib"
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         let detector = RustDetector;
         let result = detector.detect(dir.path()).unwrap().unwrap();
@@ -116,7 +123,9 @@ name = "test_lib"
         let dir = tempdir().unwrap();
         let cargo_toml = dir.path().join("Cargo.toml");
 
-        fs::write(&cargo_toml, r#"
+        fs::write(
+            &cargo_toml,
+            r#"
 [package]
 name = "test-bin"
 version = "0.1.0"
@@ -124,7 +133,9 @@ edition = "2021"
 
 [[bin]]
 name = "test-bin"
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         let detector = RustDetector;
         let result = detector.detect(dir.path()).unwrap().unwrap();
@@ -137,10 +148,14 @@ name = "test-bin"
         let dir = tempdir().unwrap();
         let cargo_toml = dir.path().join("Cargo.toml");
 
-        fs::write(&cargo_toml, r#"
+        fs::write(
+            &cargo_toml,
+            r#"
 [workspace]
 members = ["crate1", "crate2"]
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         let detector = RustDetector;
         let result = detector.detect(dir.path()).unwrap().unwrap();

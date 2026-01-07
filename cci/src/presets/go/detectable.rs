@@ -46,4 +46,3 @@ impl Detectable for GoAppPreset {
         false
     }
 }
-

@@ -44,10 +44,7 @@ pub enum CircleCIStep {
 #[serde(untagged)]
 pub enum CircleCIRun {
     Simple(String),
-    Detailed {
-        name: String,
-        command: String,
-    },
+    Detailed { name: String, command: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

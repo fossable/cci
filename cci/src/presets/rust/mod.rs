@@ -1,12 +1,12 @@
+use crate::traits::PresetInfo;
 use cci_macros::Preset;
 
-mod github;
-mod gitea;
-mod gitlab;
 mod circleci;
-mod jenkins;
 mod detectable;
-mod preset_info;
+mod gitea;
+mod github;
+mod gitlab;
+mod jenkins;
 
 /// Unified preset for Rust projects (binaries, libraries, and workspaces)
 #[derive(Debug, Clone, Preset)]
@@ -17,62 +17,51 @@ mod preset_info;
     matches = "RustBinary | RustLibrary | RustWorkspace"
 )]
 pub struct RustPreset {
-    #[preset_field(
-        ron_field = "version",
-        default = "\"stable\".to_string()",
-        hidden = true
-    )]
+    #[preset_field(default = "\"stable\".to_string()", hidden = true)]
     pub(super) rust_version: String,
 
     #[preset_field(
         feature = "testing",
         feature_display = "Testing",
-        feature_description = "Test coverage reporting",
         display = "Code Coverage",
         description = "Enable code coverage reporting with tarpaulin",
-        default = "true"
+        default = "false"
     )]
     pub(super) enable_coverage: bool,
 
     #[preset_field(
         feature = "linting",
         feature_display = "Linting",
-        feature_description = "Code quality checks",
         display = "Clippy Linter",
         description = "Run Clippy linter for code quality",
-        default = "true"
+        default = "false"
     )]
     pub(super) enable_linter: bool,
 
     #[preset_field(
-        id = "enable_security",
         feature = "security",
         feature_display = "Security",
-        feature_description = "Security vulnerability scanning",
         display = "Security Scan",
         description = "Run cargo-audit for dependency vulnerabilities",
-        default = "true"
+        default = "false"
     )]
     pub(super) enable_security_scan: bool,
 
     #[preset_field(
-        id = "enable_formatter",
         feature = "formatting",
         feature_display = "Formatting",
-        feature_description = "Code formatting checks",
         display = "Rustfmt Check",
         description = "Check code formatting with rustfmt",
-        default = "true"
+        default = "false"
     )]
     pub(super) enable_format_check: bool,
 
     #[preset_field(
         feature = "building",
         feature_display = "Building",
-        feature_description = "Release binary builds",
         display = "Build Release",
         description = "Build optimized release binary in CI",
-        default = "true"
+        default = "false"
     )]
     pub(super) build_release: bool,
 }
@@ -90,10 +79,20 @@ impl Default for RustPreset {
     }
 }
 
+impl PresetInfo for RustPreset {
+    fn name(&self) -> &str {
+        "rust"
+    }
+
+    fn description(&self) -> &str {
+        "CI pipeline for Rust projects (binaries, libraries, and workspaces)"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::traits::{ToGitHub, PresetInfo};
+    use crate::traits::{PresetInfo, ToGitHub};
 
     #[test]
     fn test_default() {

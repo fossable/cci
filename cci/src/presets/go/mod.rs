@@ -1,12 +1,12 @@
+use crate::traits::PresetInfo;
 use cci_macros::Preset;
 
-mod github;
-mod gitea;
-mod gitlab;
 mod circleci;
-mod jenkins;
 mod detectable;
-mod preset_info;
+mod gitea;
+mod github;
+mod gitlab;
+mod jenkins;
 
 /// Preset for Go application projects
 #[derive(Debug, Clone, Preset)]
@@ -17,17 +17,12 @@ mod preset_info;
     matches = "GoApp | GoLibrary"
 )]
 pub struct GoAppPreset {
-    #[preset_field(
-        ron_field = "version",
-        default = "\"1.21\".to_string()",
-        hidden = true
-    )]
+    #[preset_field(default = "\"1.21\".to_string()", hidden = true)]
     pub(super) go_version: String,
 
     #[preset_field(
         feature = "linting",
         feature_display = "Linting",
-        feature_description = "Code quality checks with golangci-lint",
         display = "Enable Linter",
         description = "Run golangci-lint for code quality",
         default = "true"
@@ -35,10 +30,8 @@ pub struct GoAppPreset {
     pub(super) enable_linter: bool,
 
     #[preset_field(
-        id = "enable_security",
         feature = "security",
         feature_display = "Security",
-        feature_description = "Security vulnerability scanning",
         display = "Security Scan",
         description = "Run gosec for security vulnerabilities",
         default = "true"
@@ -53,4 +46,14 @@ impl GoAppPreset {
         enable_linter: false,
         enable_security_scan: false,
     };
+}
+
+impl PresetInfo for GoAppPreset {
+    fn name(&self) -> &str {
+        "go-app"
+    }
+
+    fn description(&self) -> &str {
+        "CI pipeline for Go applications with testing and linting"
+    }
 }

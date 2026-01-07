@@ -7,7 +7,9 @@ use super::RustPreset;
 
 impl ToGitLab for RustPreset {
     fn to_gitlab(&self) -> Result<GitLabCI> {
-        use crate::platforms::gitlab::models::{GitLabArtifacts, GitLabCache, GitLabJob, GitLabOnly};
+        use crate::platforms::gitlab::models::{
+            GitLabArtifacts, GitLabCache, GitLabJob, GitLabOnly,
+        };
 
         let mut jobs = BTreeMap::new();
         let mut stages = vec!["test".to_string()];
@@ -39,10 +41,7 @@ impl ToGitLab for RustPreset {
                 needs: None,
                 cache: Some(GitLabCache {
                     key: "rust-cache".to_string(),
-                    paths: vec![
-                        "target/".to_string(),
-                        ".cargo/".to_string(),
-                    ],
+                    paths: vec!["target/".to_string(), ".cargo/".to_string()],
                 }),
                 artifacts: if self.enable_coverage {
                     Some(GitLabArtifacts {
@@ -53,7 +52,11 @@ impl ToGitLab for RustPreset {
                     None
                 },
                 only: Some(GitLabOnly {
-                    refs: Some(vec!["main".to_string(), "master".to_string(), "merge_requests".to_string()]),
+                    refs: Some(vec![
+                        "main".to_string(),
+                        "master".to_string(),
+                        "merge_requests".to_string(),
+                    ]),
                 }),
                 timeout: Some("30m".to_string()),
             },
@@ -66,9 +69,7 @@ impl ToGitLab for RustPreset {
                 GitLabJob {
                     stage: "build".to_string(),
                     image: Some(format!("rust:{}", self.rust_version)),
-                    script: vec![
-                        "cargo build --release".to_string(),
-                    ],
+                    script: vec!["cargo build --release".to_string()],
                     before_script: None,
                     after_script: None,
                     needs: None,
@@ -168,7 +169,11 @@ impl ToGitLab for RustPreset {
                     }),
                     artifacts: None,
                     only: Some(GitLabOnly {
-                        refs: Some(vec!["main".to_string(), "master".to_string(), "merge_requests".to_string()]),
+                        refs: Some(vec![
+                            "main".to_string(),
+                            "master".to_string(),
+                            "merge_requests".to_string(),
+                        ]),
                     }),
                     timeout: Some("10m".to_string()),
                 },

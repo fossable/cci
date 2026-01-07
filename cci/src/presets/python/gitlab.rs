@@ -11,7 +11,10 @@ impl ToGitLab for PythonAppPreset {
 
         let mut jobs = BTreeMap::new();
 
-        let mut script = vec!["pip install -r requirements.txt".to_string(), "pytest".to_string()];
+        let mut script = vec![
+            "pip install -r requirements.txt".to_string(),
+            "pytest".to_string(),
+        ];
 
         if let Some(linter) = &self.linter {
             script.insert(1, format!("pip install {}", linter.name()));
@@ -52,4 +55,3 @@ impl ToGitLab for PythonAppPreset {
         })
     }
 }
-

@@ -34,7 +34,7 @@ impl Detectable for PythonAppPreset {
         self.matches_github(workflow)
     }
 
-    fn matches_gitlab(&self, _config: &GitLabCI) -> bool{
+    fn matches_gitlab(&self, _config: &GitLabCI) -> bool {
         false
     }
 
@@ -46,4 +46,3 @@ impl Detectable for PythonAppPreset {
         false
     }
 }
-

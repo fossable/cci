@@ -1,5 +1,5 @@
 use crate::error::Result;
-use crate::traits::{ToGitea, ToGitHub};
+use crate::traits::{ToGitHub, ToGitea};
 
 use super::GoAppPreset;
 
@@ -9,4 +9,3 @@ impl ToGitea for GoAppPreset {
         self.to_github()
     }
 }
-

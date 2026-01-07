@@ -69,12 +69,7 @@ pub fn handle_generate(config_path: &str, platform_arg: Option<String>, force: b
         .language_version
         .unwrap_or_else(|| "stable".to_string());
 
-    let generator = MultiPresetGenerator::new(
-        preset_configs,
-        registry,
-        platform,
-        language_version,
-    );
+    let generator = MultiPresetGenerator::new(preset_configs, registry, platform, language_version);
 
     let outputs = generator
         .generate_all()
@@ -97,9 +92,8 @@ pub fn handle_generate(config_path: &str, platform_arg: Option<String>, force: b
 
         // Create parent directories if needed
         if let Some(parent) = output_path.parent() {
-            std::fs::create_dir_all(parent).with_context(|| {
-                format!("Failed to create directory: {}", parent.display())
-            })?;
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
         }
 
         // Write file
@@ -186,7 +180,11 @@ pub fn handle_detect(dir: &str) -> Result<()> {
     };
 
     // 2. Display project type
-    println!("{} {}", "✓ Project Type:".green().bold(), detection.project_type);
+    println!(
+        "{} {}",
+        "✓ Project Type:".green().bold(),
+        detection.project_type
+    );
 
     if let Some(version) = &detection.language_version {
         println!("  {} {}", "Language Version:".dimmed(), version);
@@ -203,7 +201,10 @@ pub fn handle_detect(dir: &str) -> Result<()> {
 
     // 4. Check for existing CI files
     println!();
-    println!("{}", "Checking for existing CI configurations...".cyan().bold());
+    println!(
+        "{}",
+        "Checking for existing CI configurations...".cyan().bold()
+    );
 
     let ci_files = vec![
         (".github/workflows", "GitHub Actions"),
@@ -265,10 +266,20 @@ pub fn handle_detect(dir: &str) -> Result<()> {
     println!();
     println!("{}", "Next steps:".cyan().bold());
     if matching_presets.is_empty() {
-        println!("  • Run {} to configure CI for this project", "cci editor".yellow());
+        println!(
+            "  • Run {} to configure CI for this project",
+            "cci editor".yellow()
+        );
     } else {
-        println!("  • Run {} to interactively configure CI", "cci editor".yellow());
-        println!("  • Or create a {} file and run {}", "cci.ron".yellow(), "cci generate".yellow());
+        println!(
+            "  • Run {} to interactively configure CI",
+            "cci editor".yellow()
+        );
+        println!(
+            "  • Or create a {} file and run {}",
+            "cci.ron".yellow(),
+            "cci generate".yellow()
+        );
     }
 
     Ok(())

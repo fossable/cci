@@ -19,9 +19,9 @@ pub fn render_ui(f: &mut Frame, state: &EditorState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(4),  // Information message bar
-            Constraint::Min(0),     // Main content
-            Constraint::Length(3),  // Footer
+            Constraint::Length(4), // Information message bar
+            Constraint::Min(0),    // Main content
+            Constraint::Length(3), // Footer
         ])
         .split(f.area());
 
@@ -32,8 +32,8 @@ pub fn render_ui(f: &mut Frame, state: &EditorState) {
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(40),  // Left panel (tree)
-            Constraint::Percentage(60),  // Right panel (preview + platform)
+            Constraint::Percentage(40), // Left panel (tree)
+            Constraint::Percentage(60), // Right panel (preview + platform)
         ])
         .split(chunks[1]);
 
@@ -43,8 +43,8 @@ pub fn render_ui(f: &mut Frame, state: &EditorState) {
     let right_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Min(0),     // Preview
-            Constraint::Length(3),  // Platform selector
+            Constraint::Min(0),    // Preview
+            Constraint::Length(3), // Platform selector
         ])
         .split(main_chunks[1]);
 
@@ -70,13 +70,20 @@ fn render_info_bar(f: &mut Frame, area: Rect, state: &EditorState) {
     let paragraph = Paragraph::new(text)
         .style(Style::default().fg(Color::Gray))
         .wrap(Wrap { trim: true })
-        .block(Block::default().borders(Borders::ALL).title(" Information "));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Information "),
+        );
 
     f.render_widget(paragraph, area);
 }
 
 fn render_platform_bar(f: &mut Frame, area: Rect, state: &EditorState) {
-    let text = format!("Platform: {} (press 'p' to change)", state.target_platform.name());
+    let text = format!(
+        "Platform: {} (press 'p' to change)",
+        state.target_platform.name()
+    );
 
     let paragraph = Paragraph::new(text)
         .style(Style::default().fg(Color::Cyan))
@@ -100,23 +107,33 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
 
                 let config = state.preset_configs.get(preset_id.as_str());
                 let is_expanded = state.expanded_presets.contains(preset_id);
-                let has_options_enabled = config.map(|c| {
-                    c.values.values().any(|v| matches!(v, OptionValue::Bool(true)))
-                }).unwrap_or(false);
-                let matches_project = preset.matches_project(&state.project_type, &state.working_dir);
+                let has_options_enabled = config
+                    .map(|c| {
+                        c.values
+                            .values()
+                            .any(|v| matches!(v, OptionValue::Bool(true)))
+                    })
+                    .unwrap_or(false);
+                let matches_project =
+                    preset.matches_project(&state.project_type, &state.working_dir);
+                let has_non_defaults = state.has_preset_non_defaults(preset_id);
 
                 let expand_icon = if is_expanded { "▼" } else { "▶" };
                 let circle_icon = if has_options_enabled { "●" } else { "○" };
 
                 let circle_color = if has_options_enabled {
-                    if matches_project { Color::Green } else { Color::DarkGray }
+                    if matches_project {
+                        Color::Green
+                    } else {
+                        Color::DarkGray
+                    }
                 } else {
                     Color::White
                 };
 
                 let text_color = if is_selected {
                     Color::Yellow
-                } else if !matches_project {
+                } else if !has_non_defaults {
                     Color::DarkGray
                 } else {
                     Color::White
@@ -125,7 +142,10 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
                 let line = Line::from(vec![
                     Span::styled(format!("{} ", expand_icon), Style::default().fg(text_color)),
                     Span::styled(circle_icon, Style::default().fg(circle_color)),
-                    Span::styled(format!(" {}", preset.preset_name()), Style::default().fg(text_color)),
+                    Span::styled(
+                        format!(" {}", preset.preset_name()),
+                        Style::default().fg(text_color),
+                    ),
                 ]);
 
                 let item_style = if is_selected {
@@ -147,21 +167,24 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
                     None => continue,
                 };
 
-                let matches_project = preset.matches_project(&state.project_type, &state.working_dir);
-                let is_expanded = state.expanded_features.contains(&(preset_id.clone(), feature_id.clone()));
+                let is_expanded = state
+                    .expanded_features
+                    .contains(&(preset_id.clone(), feature_id.clone()));
                 let expand_icon = if is_expanded { "▼" } else { "▶" };
+                let has_non_defaults = state.has_feature_non_defaults(preset_id, feature_id);
 
                 let text_color = if is_selected {
                     Color::Yellow
-                } else if !matches_project {
+                } else if !has_non_defaults {
                     Color::DarkGray
                 } else {
                     Color::White
                 };
 
-                let line = Line::from(vec![
-                    Span::styled(format!("  {} {}", expand_icon, feature.display_name), Style::default().fg(text_color)),
-                ]);
+                let line = Line::from(vec![Span::styled(
+                    format!("  {} {}", expand_icon, feature.display_name),
+                    Style::default().fg(text_color),
+                )]);
 
                 let item_style = if is_selected {
                     Style::default().add_modifier(Modifier::BOLD)
@@ -194,9 +217,10 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
                     .flat_map(|f| &f.options)
                     .find(|o| &o.id == option_id);
 
-                let display_name = option_meta.map(|o| o.display_name.as_str()).unwrap_or(option_id);
-
-                let matches_project = preset.matches_project(&state.project_type, &state.working_dir);
+                let display_name = option_meta
+                    .map(|o| o.display_name.as_str())
+                    .unwrap_or(option_id);
+                let is_non_default = state.is_option_non_default(preset_id, option_id);
 
                 let display_text = match value {
                     OptionValue::Bool(b) => {
@@ -216,7 +240,7 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
 
                 let text_color = if is_selected {
                     Color::Yellow
-                } else if !matches_project {
+                } else if !is_non_default {
                     Color::DarkGray
                 } else {
                     Color::White
@@ -235,13 +259,12 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
         items.push(list_item);
     }
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .title(" Presets ")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Green)),
-        );
+    let list = List::new(items).block(
+        Block::default()
+            .title(" Presets ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Green)),
+    );
 
     f.render_widget(list, area);
 }
@@ -265,9 +288,7 @@ fn render_preview_panel(f: &mut Frame, area: Rect, state: &EditorState) {
     };
 
     let output_path = state.target_platform.output_path();
-    let filename = output_path
-        .to_str()
-        .unwrap_or("config.yml");
+    let filename = output_path.to_str().unwrap_or("config.yml");
 
     let block = Block::default()
         .title(format!(" Preview - {} (Shift+J/K to scroll) ", filename))
@@ -305,7 +326,9 @@ fn render_platform_menu(f: &mut Frame, state: &EditorState) {
             let is_current = *platform == state.target_platform;
 
             let style = if is_selected {
-                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD)
             } else {
                 Style::default()
             };
@@ -313,19 +336,17 @@ fn render_platform_menu(f: &mut Frame, state: &EditorState) {
             let marker = if is_current { "● " } else { "  " };
             let prefix = if is_selected { "> " } else { "  " };
 
-            ListItem::new(format!("{}{}{}", prefix, marker, platform.name()))
-                .style(style)
+            ListItem::new(format!("{}{}{}", prefix, marker, platform.name())).style(style)
         })
         .collect();
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .title(" Select Platform ")
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Cyan))
-                .style(Style::default().bg(Color::Black)),
-        );
+    let list = List::new(items).block(
+        Block::default()
+            .title(" Select Platform ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan))
+            .style(Style::default().bg(Color::Black)),
+    );
 
     f.render_widget(list, menu_area);
 }
@@ -646,8 +667,8 @@ fn render_footer(f: &mut Frame, area: Rect, state: &EditorState) {
         ]
     };
 
-    let paragraph = Paragraph::new(Line::from(help_text))
-        .block(Block::default().borders(Borders::ALL));
+    let paragraph =
+        Paragraph::new(Line::from(help_text)).block(Block::default().borders(Borders::ALL));
 
     f.render_widget(paragraph, area);
 }

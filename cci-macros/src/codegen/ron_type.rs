@@ -1,6 +1,6 @@
-use proc_macro2::TokenStream;
-use quote::{quote, format_ident};
 use crate::preset::PresetFieldOpts;
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
 
 pub fn generate_ron_type(
     preset_ident: &syn::Ident,
@@ -8,26 +8,21 @@ pub fn generate_ron_type(
     fields: &[PresetFieldOpts],
 ) -> TokenStream {
     // Generate RON config struct name (e.g., RustPreset -> RustConfig)
-    let config_name = format_ident!("{}Config", preset_ident.to_string().strip_suffix("Preset").unwrap_or(&preset_ident.to_string()));
+    let config_name = format_ident!(
+        "{}Config",
+        preset_ident
+            .to_string()
+            .strip_suffix("Preset")
+            .unwrap_or(&preset_ident.to_string())
+    );
 
     // Generate fields for the RON struct
     let ron_fields = fields.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
         let field_ty = &field.ty;
 
-        // Determine the RON field name
-        let ron_field_name = if let Some(ref ron_field) = field.ron_field {
-            format_ident!("{}", ron_field)
-        } else if let Some(ref id) = field.id {
-            // Strip "enable_" prefix if present for RON field
-            let cleaned = id.strip_prefix("enable_").unwrap_or(id);
-            format_ident!("{}", cleaned)
-        } else {
-            // Use the rust field name, strip enable_ prefix
-            let field_str = field_ident.to_string();
-            let cleaned = field_str.strip_prefix("enable_").unwrap_or(&field_str);
-            format_ident!("{}", cleaned)
-        };
+        // Use the field name directly
+        let ron_field_name = field_ident.clone();
 
         // Add #[serde(default)] for non-String types
         let serde_default = match field_ty {
@@ -51,6 +46,7 @@ pub fn generate_ron_type(
 
     quote! {
         #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
         pub struct #config_name {
             #(#ron_fields),*
         }

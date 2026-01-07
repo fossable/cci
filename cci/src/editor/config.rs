@@ -61,6 +61,8 @@ pub struct PresetConfig {
     pub preset_id: String,
     /// Flat map of option_id -> value
     pub values: HashMap<String, OptionValue>,
+    /// Track which options have been explicitly set (vs using defaults)
+    pub explicitly_set: std::collections::HashSet<String>,
 }
 
 impl PresetConfig {
@@ -68,6 +70,7 @@ impl PresetConfig {
         Self {
             preset_id,
             values: HashMap::new(),
+            explicitly_set: std::collections::HashSet::new(),
         }
     }
 
@@ -103,17 +106,23 @@ impl PresetConfig {
     }
 
     pub fn set(&mut self, option_id: String, value: OptionValue) {
+        self.explicitly_set.insert(option_id.clone());
         self.values.insert(option_id, value);
     }
 
     pub fn toggle(&mut self, option_id: &str) {
         if let Some(value) = self.values.get_mut(option_id) {
+            self.explicitly_set.insert(option_id.to_string());
             match value {
                 OptionValue::Bool(b) => *b = !*b,
                 OptionValue::Enum { .. } => value.cycle_enum(),
                 _ => {}
             }
         }
+    }
+
+    pub fn is_explicitly_set(&self, option_id: &str) -> bool {
+        self.explicitly_set.contains(option_id)
     }
 }
 
@@ -132,8 +141,12 @@ pub trait EditorPreset: Send + Sync {
     fn features(&self) -> Vec<FeatureMeta>;
 
     /// Build the preset with given configuration and generate output
-    fn generate(&self, config: &PresetConfig, platform: Platform, language_version: &str)
-        -> Result<String>;
+    fn generate(
+        &self,
+        config: &PresetConfig,
+        platform: Platform,
+        language_version: &str,
+    ) -> Result<String>;
 
     /// Check if this preset matches the detected project type
     /// This is used for UI coloring and sorting, not for enabling/disabling presets

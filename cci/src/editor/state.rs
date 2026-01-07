@@ -49,9 +49,9 @@ impl Platform {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TreeItem {
-    Preset(String),                        // preset_id
-    Feature(String, String),               // preset_id, feature_id
-    Option(String, String, String),        // preset_id, feature_id, option_id
+    Preset(String),                 // preset_id
+    Feature(String, String),        // preset_id, feature_id
+    Option(String, String, String), // preset_id, feature_id, option_id
 }
 
 pub struct EditorState {
@@ -68,8 +68,8 @@ pub struct EditorState {
     pub preset_configs: HashMap<String, PresetConfig>,
 
     // UI state - tree structure
-    pub expanded_presets: HashSet<String>,  // preset IDs
-    pub expanded_features: HashSet<(String, String)>,  // (preset_id, feature_id)
+    pub expanded_presets: HashSet<String>, // preset IDs
+    pub expanded_features: HashSet<(String, String)>, // (preset_id, feature_id)
     pub tree_items: Vec<TreeItem>,
     pub tree_cursor: usize,
     pub platform_menu_open: bool,
@@ -155,7 +155,10 @@ impl EditorState {
             tree_items: Vec::new(),
             tree_cursor: 0,
             platform_menu_open: false,
-            platform_menu_cursor: Platform::all().iter().position(|&p| p == target_platform).unwrap_or(0),
+            platform_menu_cursor: Platform::all()
+                .iter()
+                .position(|&p| p == target_platform)
+                .unwrap_or(0),
             preview_scroll: 0,
             yaml_preview: String::new(),
             generation_error: None,
@@ -171,13 +174,13 @@ impl EditorState {
         Ok(state)
     }
 
-
     pub fn rebuild_tree(&mut self) {
         self.tree_items.clear();
 
         // Get all presets and sort: matching ones first, then others
         let mut all_presets: Vec<_> = self.registry.all().into_iter().collect();
-        all_presets.sort_by_key(|preset| !preset.matches_project(&self.project_type, &self.working_dir));
+        all_presets
+            .sort_by_key(|preset| !preset.matches_project(&self.project_type, &self.working_dir));
 
         // Build three-level tree: Preset → Feature → Option
         for preset in all_presets {
@@ -188,10 +191,14 @@ impl EditorState {
             if self.expanded_presets.contains(&preset_id) {
                 for feature in preset.features() {
                     let feature_id = feature.id.clone();
-                    self.tree_items.push(TreeItem::Feature(preset_id.clone(), feature_id.clone()));
+                    self.tree_items
+                        .push(TreeItem::Feature(preset_id.clone(), feature_id.clone()));
 
                     // Add options if feature is expanded
-                    if self.expanded_features.contains(&(preset_id.clone(), feature_id.clone())) {
+                    if self
+                        .expanded_features
+                        .contains(&(preset_id.clone(), feature_id.clone()))
+                    {
                         for option in &feature.options {
                             self.tree_items.push(TreeItem::Option(
                                 preset_id.clone(),
@@ -235,15 +242,13 @@ impl EditorState {
         self.preview_scroll = 0;
 
         // Find the first preset that has any options enabled
-        let active_preset = self.registry.all()
-            .into_iter()
-            .find(|preset| {
-                if let Some(config) = self.preset_configs.get(preset.preset_id()) {
-                    self.has_any_options_enabled(config)
-                } else {
-                    false
-                }
-            });
+        let active_preset = self.registry.all().into_iter().find(|preset| {
+            if let Some(config) = self.preset_configs.get(preset.preset_id()) {
+                self.has_any_options_enabled(config)
+            } else {
+                false
+            }
+        });
 
         let Some(preset) = active_preset else {
             self.yaml_preview = "# No preset options enabled\n# Enable at least one option to generate configuration".to_string();
@@ -299,7 +304,8 @@ impl EditorState {
                     OptionValue::Bool(b) => OptionValue::Bool(!b),
                     OptionValue::Enum { selected, variants } => {
                         // Cycle to next variant
-                        let current_index = variants.iter().position(|v| v == selected).unwrap_or(0);
+                        let current_index =
+                            variants.iter().position(|v| v == selected).unwrap_or(0);
                         let next_index = (current_index + 1) % variants.len();
                         OptionValue::Enum {
                             selected: variants[next_index].clone(),
@@ -317,7 +323,10 @@ impl EditorState {
 
     pub fn cycle_platform(&mut self) {
         let platforms = Platform::all();
-        let current_index = platforms.iter().position(|&p| p == self.target_platform).unwrap_or(0);
+        let current_index = platforms
+            .iter()
+            .position(|&p| p == self.target_platform)
+            .unwrap_or(0);
         let next_index = (current_index + 1) % platforms.len();
         self.target_platform = platforms[next_index];
 
@@ -382,35 +391,38 @@ impl EditorState {
 
     pub fn update_current_item_description(&mut self) {
         self.current_item_description = match self.current_item() {
-            Some(TreeItem::Preset(preset_id)) => {
-                self.registry.get(preset_id)
-                    .map(|p| p.preset_description().to_string())
-                    .unwrap_or_default()
-            }
-            Some(TreeItem::Feature(preset_id, feature_id)) => {
-                self.registry.get(preset_id)
-                    .and_then(|preset| {
-                        preset.features()
-                            .into_iter()
-                            .find(|f| &f.id == feature_id)
-                            .map(|f| f.description.clone())
-                    })
-                    .unwrap_or_default()
-            }
-            Some(TreeItem::Option(preset_id, feature_id, option_id)) => {
-                self.registry.get(preset_id)
-                    .and_then(|preset| {
-                        preset.features()
-                            .into_iter()
-                            .find(|f| &f.id == feature_id)
-                            .and_then(|f| {
-                                f.options.iter()
-                                    .find(|o| &o.id == option_id)
-                                    .map(|o| o.description.clone())
-                            })
-                    })
-                    .unwrap_or_default()
-            }
+            Some(TreeItem::Preset(preset_id)) => self
+                .registry
+                .get(preset_id)
+                .map(|p| p.preset_description().to_string())
+                .unwrap_or_default(),
+            Some(TreeItem::Feature(preset_id, feature_id)) => self
+                .registry
+                .get(preset_id)
+                .and_then(|preset| {
+                    preset
+                        .features()
+                        .into_iter()
+                        .find(|f| &f.id == feature_id)
+                        .map(|f| f.description.clone())
+                })
+                .unwrap_or_default(),
+            Some(TreeItem::Option(preset_id, feature_id, option_id)) => self
+                .registry
+                .get(preset_id)
+                .and_then(|preset| {
+                    preset
+                        .features()
+                        .into_iter()
+                        .find(|f| &f.id == feature_id)
+                        .and_then(|f| {
+                            f.options
+                                .iter()
+                                .find(|o| &o.id == option_id)
+                                .map(|o| o.description.clone())
+                        })
+                })
+                .unwrap_or_default(),
             None => String::new(),
         };
     }
@@ -423,6 +435,95 @@ impl EditorState {
         self.preview_scroll = self.preview_scroll.saturating_add(1);
     }
 
+    /// Check if an option value differs from its default value
+    pub fn is_option_non_default(&self, preset_id: &str, option_id: &str) -> bool {
+        let preset = match self.registry.get(preset_id) {
+            Some(p) => p,
+            None => return false,
+        };
+
+        let current_value = match self.get_option_value(preset_id, option_id) {
+            Some(v) => v,
+            None => return false,
+        };
+
+        // Find the option metadata to get default value
+        for feature in preset.features() {
+            for option in &feature.options {
+                if option.id == option_id {
+                    return current_value != &option.default_value;
+                }
+            }
+        }
+
+        false
+    }
+
+    /// Check if a feature has any non-default options
+    pub fn has_feature_non_defaults(&self, preset_id: &str, feature_id: &str) -> bool {
+        let preset = match self.registry.get(preset_id) {
+            Some(p) => p,
+            None => return false,
+        };
+
+        let feature = match preset.features().into_iter().find(|f| f.id == feature_id) {
+            Some(f) => f,
+            None => return false,
+        };
+
+        for option in &feature.options {
+            if self.is_option_non_default(preset_id, &option.id) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Check if a preset has any non-default options
+    pub fn has_preset_non_defaults(&self, preset_id: &str) -> bool {
+        let preset = match self.registry.get(preset_id) {
+            Some(p) => p,
+            None => return false,
+        };
+
+        for feature in preset.features() {
+            if self.has_feature_non_defaults(preset_id, &feature.id) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Auto-expand presets and features that have non-default values
+    pub fn auto_expand_non_defaults(&mut self) {
+        let preset_ids: Vec<String> = self
+            .registry
+            .all()
+            .into_iter()
+            .map(|p| p.preset_id().to_string())
+            .collect();
+
+        for preset_id in preset_ids {
+            if self.has_preset_non_defaults(&preset_id) {
+                self.expanded_presets.insert(preset_id.clone());
+
+                // Expand features with non-defaults
+                if let Some(preset) = self.registry.get(&preset_id) {
+                    for feature in preset.features() {
+                        if self.has_feature_non_defaults(&preset_id, &feature.id) {
+                            self.expanded_features
+                                .insert((preset_id.clone(), feature.id.clone()));
+                        }
+                    }
+                }
+            }
+        }
+
+        self.rebuild_tree();
+    }
+
     /// Load RON configuration into TUI state
     pub fn from_ron_file(path: &std::path::Path) -> Result<Self> {
         use crate::config::{preset_choice_to_config, CciConfig};
@@ -431,10 +532,20 @@ impl EditorState {
         let ron_str = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read RON file: {}", path.display()))?;
 
-        let ron_config: CciConfig = ron::Options::default()
+        let ron_config: CciConfig = match ron::Options::default()
             .with_default_extension(ron::extensions::Extensions::IMPLICIT_SOME)
             .from_str(&ron_str)
-            .with_context(|| "Failed to parse RON configuration")?;
+        {
+            Ok(config) => config,
+            Err(e) => {
+                eprintln!("Warning: Failed to parse RON configuration: {}", e);
+                eprintln!("This may be due to unknown or renamed fields in cci.ron");
+                eprintln!(
+                    "Please check that all field names match the current preset struct definitions"
+                );
+                return Err(anyhow::anyhow!("Failed to parse RON configuration: {}", e));
+            }
+        };
 
         let registry = Arc::new(build_registry());
         let mut preset_configs = HashMap::new();
@@ -444,7 +555,10 @@ impl EditorState {
             preset_configs.insert(preset_id, config);
         }
 
-        let working_dir = path.parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+        let working_dir = path
+            .parent()
+            .unwrap_or(std::path::Path::new("."))
+            .to_path_buf();
         let target_platform = Platform::GitHub; // Default platform
 
         // Try to load existing YAML file
@@ -473,7 +587,7 @@ impl EditorState {
             should_write: false,
         };
 
-        state.rebuild_tree();
+        state.auto_expand_non_defaults();
         state.regenerate_yaml();
         state.update_current_item_description();
         Ok(state)
@@ -543,7 +657,8 @@ mod tests {
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         // All presets should be shown in the tree
-        let preset_items: Vec<&str> = state.tree_items
+        let preset_items: Vec<&str> = state
+            .tree_items
             .iter()
             .filter_map(|item| match item {
                 TreeItem::Preset(preset_id) => Some(preset_id.as_str()),
@@ -638,16 +753,22 @@ mod tests {
             let detection = DetectionResult {
                 project_type: project_type.clone(),
                 language_version: Some("stable".to_string()),
-                    metadata: HashMap::new(),
+                metadata: HashMap::new(),
             };
 
-            let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+            let state =
+                EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-            let has_docker = state.tree_items
+            let has_docker = state
+                .tree_items
                 .iter()
                 .any(|item| matches!(item, TreeItem::Preset(id) if id == "docker"));
 
-            assert!(has_docker, "Docker preset should be shown for {:?}", project_type);
+            assert!(
+                has_docker,
+                "Docker preset should be shown for {:?}",
+                project_type
+            );
         }
     }
 
@@ -716,7 +837,8 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        let mut state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let mut state =
+            EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         // The YAML should be for Rust initially
         assert!(state.yaml_preview.contains("cargo"));
@@ -735,7 +857,11 @@ mod tests {
         state.regenerate_yaml();
 
         // The YAML should now be for Python, even though it's not the detected type
-        assert!(state.yaml_preview.contains("python") || state.yaml_preview.contains("pytest") || state.yaml_preview.contains("Setup Python"));
+        assert!(
+            state.yaml_preview.contains("python")
+                || state.yaml_preview.contains("pytest")
+                || state.yaml_preview.contains("Setup Python")
+        );
         assert!(!state.yaml_preview.contains("cargo"));
     }
 
@@ -749,7 +875,8 @@ mod tests {
             metadata: HashMap::new(),
         };
 
-        let mut state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+        let mut state =
+            EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         // Enable both Rust and Python (unusual but allowed)
         use crate::editor::config::OptionValue;

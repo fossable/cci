@@ -48,4 +48,3 @@ impl ToGitLab for GoAppPreset {
         })
     }
 }
-

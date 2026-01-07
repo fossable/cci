@@ -1,12 +1,12 @@
+use crate::traits::PresetInfo;
 use cci_macros::{Preset, PresetEnum};
 
-mod github;
-mod gitea;
-mod gitlab;
 mod circleci;
-mod jenkins;
 mod detectable;
-mod preset_info;
+mod gitea;
+mod github;
+mod gitlab;
+mod jenkins;
 
 /// Linter tool options for Python
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, PresetEnum)]
@@ -80,23 +80,17 @@ impl PythonFormatter {
 #[derive(Debug, Clone, Preset)]
 #[preset(
     id = "python-app",
-    name = "Python App",
+    name = "Python",
     description = "CI pipeline for Python applications with pytest, linting, and type checking",
     matches = "PythonApp | PythonLibrary"
 )]
 pub struct PythonAppPreset {
-    #[preset_field(
-        ron_field = "version",
-        default = "\"3.11\".to_string()",
-        hidden = true
-    )]
+    #[preset_field(default = "\"3.11\".to_string()", hidden = true)]
     pub(super) python_version: String,
 
     #[preset_field(
-        ron_field = "linter",
         feature = "linting",
         feature_display = "Linting",
-        feature_description = "Code quality checks with configurable tools",
         display = "Linter",
         description = "Choose linter tool (None, Flake8, or Ruff)",
         default = "None"
@@ -104,21 +98,17 @@ pub struct PythonAppPreset {
     pub(super) linter: Option<PythonLinter>,
 
     #[preset_field(
-        id = "type_check",
         feature = "testing",
         feature_display = "Testing",
-        feature_description = "Test execution and type checking",
         display = "Type Checking",
         description = "Enable mypy static type checking",
-        default = "true"
+        default = "false"
     )]
     pub(super) enable_type_check: bool,
 
     #[preset_field(
-        ron_field = "formatter",
         feature = "formatting",
         feature_display = "Formatting",
-        feature_description = "Code formatting checks",
         display = "Formatter",
         description = "Choose formatter tool (None, Black, or Ruff)",
         default = "None"
@@ -134,4 +124,14 @@ impl PythonAppPreset {
         enable_type_check: false,
         formatter: None,
     };
+}
+
+impl PresetInfo for PythonAppPreset {
+    fn name(&self) -> &str {
+        "python-app"
+    }
+
+    fn description(&self) -> &str {
+        "CI pipeline for Python applications with pytest, linting, and type checking"
+    }
 }

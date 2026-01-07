@@ -175,4 +175,3 @@ impl ToGitHub for PythonAppPreset {
         })
     }
 }
-

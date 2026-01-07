@@ -1,13 +1,19 @@
-use proc_macro2::TokenStream;
-use quote::{quote, format_ident};
 use crate::preset::PresetFieldOpts;
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
 
 pub fn generate_conversions(
     preset_ident: &syn::Ident,
     preset_id: &str,
     fields: &[PresetFieldOpts],
 ) -> TokenStream {
-    let config_name = format_ident!("{}Config", preset_ident.to_string().strip_suffix("Preset").unwrap_or(&preset_ident.to_string()));
+    let config_name = format_ident!(
+        "{}Config",
+        preset_ident
+            .to_string()
+            .strip_suffix("Preset")
+            .unwrap_or(&preset_ident.to_string())
+    );
 
     // Generate from_config method (PresetConfig -> Preset instance)
     let from_config_impl = generate_from_config(preset_ident, fields);
@@ -27,18 +33,13 @@ pub fn generate_conversions(
     }
 }
 
-fn generate_from_config(
-    _preset_ident: &syn::Ident,
-    fields: &[PresetFieldOpts],
-) -> TokenStream {
+fn generate_from_config(_preset_ident: &syn::Ident, fields: &[PresetFieldOpts]) -> TokenStream {
     let field_assignments = fields.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
         let field_ty = &field.ty;
 
-        // Determine the option ID
-        let option_id = field.id.as_ref()
-            .map(|s| s.clone())
-            .unwrap_or_else(|| field_ident.to_string());
+        // Use field name as option ID
+        let option_id = field_ident.to_string();
 
         // Check if this is the version field (hidden=true)
         if field.hidden {
@@ -118,22 +119,9 @@ fn generate_ron_to_preset_config(
         let field_ident = field.ident.as_ref().unwrap();
         let field_ty = &field.ty;
 
-        // Determine the option ID
-        let option_id = field.id.as_ref()
-            .map(|s| s.clone())
-            .unwrap_or_else(|| field_ident.to_string());
-
-        // Determine the RON field name
-        let ron_field_name = if let Some(ref ron_field) = field.ron_field {
-            format_ident!("{}", ron_field)
-        } else if let Some(ref id) = field.id {
-            let cleaned = id.strip_prefix("enable_").unwrap_or(id);
-            format_ident!("{}", cleaned)
-        } else {
-            let field_str = field_ident.to_string();
-            let cleaned = field_str.strip_prefix("enable_").unwrap_or(&field_str);
-            format_ident!("{}", cleaned)
-        };
+        // Use the field name for both option ID and RON field name
+        let option_id = field_ident.to_string();
+        let ron_field_name = field_ident.clone();
 
         // Skip hidden fields (they're not in PresetConfig, handled separately)
         if field.hidden {
@@ -212,22 +200,9 @@ fn generate_preset_config_to_ron(
         let field_ident = field.ident.as_ref().unwrap();
         let field_ty = &field.ty;
 
-        // Determine the option ID
-        let option_id = field.id.as_ref()
-            .map(|s| s.clone())
-            .unwrap_or_else(|| field_ident.to_string());
-
-        // Determine the RON field name
-        let ron_field_name = if let Some(ref ron_field) = field.ron_field {
-            format_ident!("{}", ron_field)
-        } else if let Some(ref id) = field.id {
-            let cleaned = id.strip_prefix("enable_").unwrap_or(id);
-            format_ident!("{}", cleaned)
-        } else {
-            let field_str = field_ident.to_string();
-            let cleaned = field_str.strip_prefix("enable_").unwrap_or(&field_str);
-            format_ident!("{}", cleaned)
-        };
+        // Use the field name for both option ID and RON field name
+        let option_id = field_ident.to_string();
+        let ron_field_name = field_ident.clone();
 
         // Get default value
         let default_val = field.default.as_ref()

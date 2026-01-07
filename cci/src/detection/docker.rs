@@ -29,7 +29,12 @@ impl ProjectDetector for DockerDetector {
         }
 
         // Also check for docker-compose files
-        let compose_files = vec!["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"];
+        let compose_files = vec![
+            "docker-compose.yml",
+            "docker-compose.yaml",
+            "compose.yml",
+            "compose.yaml",
+        ];
         let mut has_compose = false;
         for compose_file in &compose_files {
             let compose_path = path.join(compose_file);
@@ -50,7 +55,10 @@ impl ProjectDetector for DockerDetector {
             metadata.insert("dockerfile".to_string(), primary_dockerfile.clone());
 
             if found_dockerfiles.len() > 1 {
-                metadata.insert("dockerfile_count".to_string(), found_dockerfiles.len().to_string());
+                metadata.insert(
+                    "dockerfile_count".to_string(),
+                    found_dockerfiles.len().to_string(),
+                );
                 metadata.insert("dockerfiles".to_string(), found_dockerfiles.join(", "));
             }
 
@@ -113,12 +121,16 @@ mod tests {
         let dir = tempdir().unwrap();
         let dockerfile = dir.path().join("Dockerfile");
 
-        fs::write(&dockerfile, r#"
+        fs::write(
+            &dockerfile,
+            r#"
 FROM rust:latest
 WORKDIR /app
 COPY . .
 RUN cargo build --release
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         let detector = DockerDetector;
         let result = detector.detect(dir.path()).unwrap().unwrap();
@@ -148,19 +160,26 @@ RUN cargo build --release
         let dir = tempdir().unwrap();
         let compose = dir.path().join("docker-compose.yml");
 
-        fs::write(&compose, r#"
+        fs::write(
+            &compose,
+            r#"
 version: '3'
 services:
   web:
     build: .
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         let detector = DockerDetector;
         let result = detector.detect(dir.path()).unwrap().unwrap();
 
         assert_eq!(result.project_type, ProjectType::DockerImage);
         assert_eq!(result.metadata.get("has_compose").unwrap(), "yes");
-        assert_eq!(result.metadata.get("compose_file").unwrap(), "docker-compose.yml");
+        assert_eq!(
+            result.metadata.get("compose_file").unwrap(),
+            "docker-compose.yml"
+        );
     }
 
     #[test]

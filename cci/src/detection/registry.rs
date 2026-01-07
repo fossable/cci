@@ -1,8 +1,8 @@
-use super::{DetectionResult, ProjectDetector};
 use super::docker::DockerDetector;
 use super::go::GoDetector;
 use super::python::PythonDetector;
 use super::rust::RustDetector;
+use super::{DetectionResult, ProjectDetector};
 use crate::error::{detection_failed_error, Result};
 use std::path::Path;
 
@@ -68,14 +68,18 @@ mod tests {
         let dir = tempdir().unwrap();
         let cargo_toml = dir.path().join("Cargo.toml");
 
-        fs::write(&cargo_toml, r#"
+        fs::write(
+            &cargo_toml,
+            r#"
 [package]
 name = "test"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
 
         let registry = DetectorRegistry::new();
         let _result = registry.detect(dir.path()).unwrap();

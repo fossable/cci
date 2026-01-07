@@ -57,10 +57,7 @@ impl GitHubStep {
         Self::action_with_config(
             "Setup Rust",
             "actions-rust-lang/setup-rust-toolchain@v1",
-            BTreeMap::from([(
-                "toolchain".to_string(),
-                Value::String(version.into()),
-            )]),
+            BTreeMap::from([("toolchain".to_string(), Value::String(version.into()))]),
         )
     }
 
@@ -69,10 +66,7 @@ impl GitHubStep {
         Self::action_with_config(
             "Setup Python",
             "actions/setup-python@v5",
-            BTreeMap::from([(
-                "python-version".to_string(),
-                Value::String(version.into()),
-            )]),
+            BTreeMap::from([("python-version".to_string(), Value::String(version.into()))]),
         )
     }
 
@@ -81,10 +75,7 @@ impl GitHubStep {
         Self::action_with_config(
             "Setup Go",
             "actions/setup-go@v5",
-            BTreeMap::from([(
-                "go-version".to_string(),
-                Value::String(version.into()),
-            )]),
+            BTreeMap::from([("go-version".to_string(), Value::String(version.into()))]),
         )
     }
 }

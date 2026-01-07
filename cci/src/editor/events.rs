@@ -81,9 +81,9 @@ pub fn handle_key_event(state: &mut EditorState, key: KeyEvent) {
                             if state.expanded_presets.contains(&preset_id) {
                                 state.toggle_preset_expand(&preset_id);
                                 // Move cursor to the preset
-                                if let Some(pos) = state.tree_items.iter().position(|item| {
-                                    matches!(item, TreeItem::Preset(p) if p == &preset_id)
-                                }) {
+                                if let Some(pos) = state.tree_items.iter().position(
+                                    |item| matches!(item, TreeItem::Preset(p) if p == &preset_id),
+                                ) {
                                     state.tree_cursor = pos;
                                     state.update_current_item_description();
                                 }

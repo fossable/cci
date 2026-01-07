@@ -53,7 +53,8 @@ impl Detectable for DockerPreset {
                             cmd.contains("docker build")
                         }
                         crate::platforms::circleci::models::CircleCIRun::Detailed {
-                            command, ..
+                            command,
+                            ..
                         } => command.contains("docker build"),
                     }
                 } else {
@@ -64,11 +65,9 @@ impl Detectable for DockerPreset {
     }
 
     fn matches_jenkins(&self, config: &JenkinsConfig) -> bool {
-        config.stages.iter().any(|stage| {
-            stage
-                .steps
-                .iter()
-                .any(|step| step.contains("docker build"))
-        })
+        config
+            .stages
+            .iter()
+            .any(|stage| stage.steps.iter().any(|step| step.contains("docker build")))
     }
 }

@@ -171,4 +171,3 @@ impl ToGitHub for GoAppPreset {
         })
     }
 }
-

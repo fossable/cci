@@ -3,9 +3,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
-use crate::codegen::{
-    generate_conversions, generate_editor_preset_impl, generate_ron_type,
-};
+use crate::codegen::{generate_conversions, generate_editor_preset_impl, generate_ron_type};
 
 /// Struct-level attributes for #[preset(...)]
 #[derive(Debug, FromDeriveInput)]
@@ -35,17 +33,9 @@ pub struct PresetFieldOpts {
     pub ident: Option<syn::Ident>,
     pub ty: syn::Type,
 
-    /// Option ID (defaults to field name)
-    #[darling(default)]
-    pub id: Option<String>,
-
     /// Default value expression
     #[darling(default)]
     pub default: Option<String>,
-
-    /// RON struct field name (if different from option ID)
-    #[darling(default)]
-    pub ron_field: Option<String>,
 
     /// Hide from TUI
     #[darling(default)]
@@ -66,10 +56,6 @@ pub struct PresetFieldOpts {
     /// Feature group display name
     #[darling(default)]
     pub feature_display: Option<String>,
-
-    /// Feature group description
-    #[darling(default)]
-    pub feature_description: Option<String>,
 }
 
 pub fn derive_preset_impl(input: TokenStream) -> TokenStream {
@@ -96,7 +82,9 @@ pub fn derive_preset_impl(input: TokenStream) -> TokenStream {
     // Generate default() method using field defaults
     let default_fields = fields.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
-        let default_expr = field.default.as_ref()
+        let default_expr = field
+            .default
+            .as_ref()
             .map(|s| s.parse::<proc_macro2::TokenStream>().unwrap())
             .unwrap_or_else(|| quote::quote! { Default::default() });
         quote::quote! {

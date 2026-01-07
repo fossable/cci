@@ -2,9 +2,9 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 
+mod codegen;
 mod preset;
 mod preset_enum;
-mod codegen;
 
 #[proc_macro_derive(Preset, attributes(preset, preset_field))]
 pub fn derive_preset(input: TokenStream) -> TokenStream {

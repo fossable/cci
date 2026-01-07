@@ -201,7 +201,9 @@ impl ToGitHub for RustPreset {
                             run: None,
                             with: Some(BTreeMap::from([(
                                 "token".to_string(),
-                                serde_yaml::Value::String("${{ secrets.GITHUB_TOKEN }}".to_string()),
+                                serde_yaml::Value::String(
+                                    "${{ secrets.GITHUB_TOKEN }}".to_string(),
+                                ),
                             )])),
                             env: None,
                         },
