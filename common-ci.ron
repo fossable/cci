@@ -1,0 +1,13 @@
+(
+    version: "1",
+    presets: [
+        Rust(
+            rust_version: "stable",
+            enable_coverage: false,
+            enable_linter: true,
+            enable_security_scan: false,
+            enable_format_check: false,
+            build_release: false,
+        ),
+    ],
+)

@@ -15,39 +15,55 @@ pipelines.
 
 There are three main advantages to generating your CI workflows/pipelines:
 
-- You can get started really quickly for projects in popular ecosystems
-- You don't have to write any Yaml
-- You're not locked into a single CI platform because
+- You can get started really quickly for projects in popular ecosystems.
+- You're not locked into a single CI platform since you can easily generate
+  pipelines for any platform.
+- You don't have to write any Yaml because we have a TUI interface.
 
 The downside is, of course, you don't get the full flexiblity of writing your
-own configuration.
+own pipeline from scratch. You can use a CCI pipeline as a starting point and
+make your own customizations, but then you're not able to freely switch to
+another CI platform.
 
-## Available Presets
+## Supported CI platforms
 
-### Rust
+- Github Actions
+- Gitlab
+- Circle CI
+- Jenkins
+- Gitea
 
-- **rust-library** - Comprehensive CI for Rust libraries
-  - Tests with coverage (tarpaulin + codecov)
-  - Linting (clippy)
-  - Formatting checks (rustfmt)
-  - Security scanning (cargo-audit)
+## `common-ci.ron`
 
-- **rust-binary** - CI for Rust binaries
-  - All features from rust-library
-  - Build job with artifact upload
-  - Automated releases on tags
+We use a configuration file called `common-ci.ron` in the root of your repo as
+the _single source of truth_ definiton for your CI pipeline. Using this file,
+`cci` can generate the proper CI configuration for any CI platform.
 
-### Python
+You can use our TUI interface to edit this file or any editor with LSP support.
+Configure your editor to use `cci lsp` as an LSP and you'll get inline
+documenation and autocomplete.
 
-- **python-app** - Python applications
-  - Tests with coverage (pytest + codecov)
-  - Type checking (mypy)
-  - Code formatting (black)
-  - Security scanning (safety)
+Here's an example of what a `common-ci.ron` file might look like:
 
-### Go
+```ron
+(
+  version: "1",
+  presets: [
+    Docker(
+      registry: "hub.docker.com",
+      image: "example",
+      push: Tags, // Or "Commits" to push on every commit
+    ),
+    Rust(
+      lint: true, // Clippy
+    ),
+    Dpkg(
+      depends: ["perl"],
+    ),
+  ]
+)
+```
 
-- **go-app** - Go applications
-  - Tests with coverage
-  - Linting (golangci-lint)
-  - Security scanning (gosec)
+# Presets
+
+TODO list all presets behind a "click to show".
