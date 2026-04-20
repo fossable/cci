@@ -3,8 +3,24 @@ use serde::{Deserialize, Serialize};
 // Re-export the generated config types from presets
 pub use crate::presets::{DockerConfig, GoAppConfig, PythonAppConfig, RustConfig};
 
-/// Top-level CCI configuration - just an array of presets
-pub type CciConfig = Vec<PresetChoice>;
+/// Top-level CCI configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CciConfig {
+    /// Configuration format version
+    pub version: String,
+    /// List of preset configurations
+    pub presets: Vec<PresetChoice>,
+}
+
+impl CciConfig {
+    pub fn is_empty(&self) -> bool {
+        self.presets.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.presets.len()
+    }
+}
 
 /// Preset choice enum - supports all available presets
 #[derive(Debug, Clone, Serialize, Deserialize)]

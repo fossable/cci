@@ -39,7 +39,6 @@ pub fn generate_ron_type(
 
     quote! {
         #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-        #[serde(deny_unknown_fields)]
         pub struct #config_name {
             #(#ron_fields),*
         }

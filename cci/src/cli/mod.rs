@@ -15,8 +15,8 @@ pub struct Cli {
 pub enum Commands {
     /// Generate CI config from RON file
     Generate {
-        /// Path to cci.ron config file
-        #[arg(default_value = "cci.ron")]
+        /// Path to common-ci.ron config file
+        #[arg(default_value = "common-ci.ron")]
         config: String,
 
         /// Target platform
@@ -30,8 +30,8 @@ pub enum Commands {
 
     /// Validate RON config syntax
     Validate {
-        /// Path to cci.ron config file
-        #[arg(default_value = "cci.ron")]
+        /// Path to common-ci.ron config file
+        #[arg(default_value = "common-ci.ron")]
         config: String,
     },
 

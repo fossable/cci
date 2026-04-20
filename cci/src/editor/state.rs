@@ -501,7 +501,7 @@ impl EditorState {
             Ok(config) => config,
             Err(e) => {
                 eprintln!("Warning: Failed to parse RON configuration: {}", e);
-                eprintln!("This may be due to unknown or renamed fields in cci.ron");
+                eprintln!("This may be due to unknown or renamed fields in common-ci.ron");
                 eprintln!(
                     "Please check that all field names match the current preset struct definitions"
                 );
@@ -512,7 +512,7 @@ impl EditorState {
         let registry = Arc::new(build_registry());
         let mut preset_configs = HashMap::new();
 
-        for preset_choice in ron_config {
+        for preset_choice in &ron_config.presets {
             let (preset_id, config) = preset_choice_to_config(&preset_choice);
             preset_configs.insert(preset_id, config);
         }
@@ -557,16 +557,21 @@ impl EditorState {
 
     /// Export current TUI state to RON configuration
     pub fn export_to_ron(&self) -> Result<String> {
-        use crate::config::preset_config_to_choice;
+        use crate::config::{preset_config_to_choice, CciConfig};
 
-        let mut ron_config = Vec::new();
+        let mut presets = Vec::new();
 
         for (preset_id, config) in &self.preset_configs {
             if self.has_any_options_enabled(config) {
                 let preset_choice = preset_config_to_choice(preset_id, config);
-                ron_config.push(preset_choice);
+                presets.push(preset_choice);
             }
         }
+
+        let ron_config = CciConfig {
+            version: "1".to_string(),
+            presets,
+        };
 
         let pretty_config = ron::ser::PrettyConfig::new()
             .depth_limit(4)
@@ -591,9 +596,9 @@ impl EditorState {
         Ok(())
     }
 
-    /// Automatically save the current state to cci.ron in the working directory
+    /// Automatically save the current state to common-ci.ron in the working directory
     pub fn auto_save_ron(&self) {
-        let cci_ron_path = self.working_dir.join("cci.ron");
+        let cci_ron_path = self.working_dir.join("common-ci.ron");
 
         // Silently attempt to save - don't panic on errors
         let _ = self.save_to_ron_file(&cci_ron_path);

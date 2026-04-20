@@ -21,8 +21,8 @@ impl EditorApp {
     pub fn new(detection: DetectionResult, platform: Option<String>) -> Result<Self> {
         let working_dir = PathBuf::from(".");
 
-        // Check if cci.ron exists, if so, load from it
-        let cci_ron_path = working_dir.join("cci.ron");
+        // Check if common-ci.ron exists, if so, load from it
+        let cci_ron_path = working_dir.join("common-ci.ron");
         let state = if cci_ron_path.exists() {
             EditorState::from_ron_file(&cci_ron_path)?
         } else {

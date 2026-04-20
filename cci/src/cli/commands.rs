@@ -57,7 +57,7 @@ pub fn handle_generate(config_path: &str, platform_arg: Option<String>, force: b
     let registry = Arc::new(build_registry());
     let mut preset_configs = Vec::new();
 
-    for preset_choice in config {
+    for preset_choice in &config.presets {
         let (preset_id, preset_config) = preset_choice_to_config(&preset_choice);
         println!("  {} {}", "•".blue(), preset_id);
         preset_configs.push((preset_id, preset_config));
@@ -138,7 +138,7 @@ pub fn handle_validate(config_path: &str) -> Result<()> {
     println!("\n{}", "Configuration is valid!".green().bold());
     println!("  Presets: {}", config.len());
 
-    for (idx, preset) in config.iter().enumerate() {
+    for (idx, preset) in config.presets.iter().enumerate() {
         let preset_name = match preset {
             crate::config::PresetChoice::PythonApp(_) => "Python",
             crate::config::PresetChoice::Rust(_) => "Rust",
@@ -277,7 +277,7 @@ pub fn handle_detect(dir: &str) -> Result<()> {
         );
         println!(
             "  • Or create a {} file and run {}",
-            "cci.ron".yellow(),
+            "common-ci.ron".yellow(),
             "cci generate".yellow()
         );
     }

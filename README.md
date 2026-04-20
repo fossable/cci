@@ -49,17 +49,14 @@ Here's an example of what a `common-ci.ron` file might look like:
 (
   version: "1",
   presets: [
-    Docker(
+    Docker((
       registry: "hub.docker.com",
-      image: "example",
-      push: Tags, // Or "Commits" to push on every commit
-    ),
-    Rust(
-      lint: true, // Clippy
-    ),
-    Dpkg(
-      depends: ["perl"],
-    ),
+      image_name: "example",
+      push_on_tags_only: true,
+    )),
+    Rust((
+      enable_linter: true, // Clippy
+    )),
   ]
 )
 ```
