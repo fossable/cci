@@ -5,9 +5,9 @@ use crate::platforms::github::models::{
 use crate::traits::ToGitHub;
 use std::collections::BTreeMap;
 
-use super::{DockerPreset, DockerRegistry};
+use super::{Docker, DockerRegistry};
 
-impl ToGitHub for DockerPreset {
+impl ToGitHub for Docker {
     fn to_github(&self) -> Result<GitHubWorkflow> {
         let mut jobs = BTreeMap::new();
 

@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::platforms::circleci::models::CircleCIConfig;
 use crate::traits::ToCircleCI;
 
-use super::GoAppPreset;
+use super::GoApp;
 
-impl ToCircleCI for GoAppPreset {
+impl ToCircleCI for GoApp {
     fn to_circleci(&self) -> Result<CircleCIConfig> {
         use crate::platforms::circleci::models::*;
         use std::collections::BTreeMap;

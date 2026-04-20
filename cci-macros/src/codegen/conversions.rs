@@ -7,16 +7,10 @@ pub fn generate_conversions(
     preset_id: &str,
     fields: &[PresetFieldOpts],
 ) -> TokenStream {
-    let config_name = format_ident!(
-        "{}Config",
-        preset_ident
-            .to_string()
-            .strip_suffix("Preset")
-            .unwrap_or(&preset_ident.to_string())
-    );
+    let config_name = format_ident!("{}Config", preset_ident);
 
     // Generate from_config method (PresetConfig -> Preset instance)
-    let from_config_impl = generate_from_config(preset_ident, fields);
+    let from_config_impl = generate_from_config(fields);
 
     // Generate ron_to_preset_config (RON -> PresetConfig)
     let ron_to_preset_config = generate_ron_to_preset_config(preset_id, &config_name, fields);
@@ -33,7 +27,7 @@ pub fn generate_conversions(
     }
 }
 
-fn generate_from_config(_preset_ident: &syn::Ident, fields: &[PresetFieldOpts]) -> TokenStream {
+fn generate_from_config(fields: &[PresetFieldOpts]) -> TokenStream {
     let field_assignments = fields.iter().map(|field| {
         let field_ident = field.ident.as_ref().unwrap();
         let field_ty = &field.ty;
@@ -136,8 +130,6 @@ fn generate_ron_to_preset_config(
                     None
                 } else if type_str.starts_with("Option<") {
                     // Extract inner type from Option<T>
-                    // We need to get the inner enum type to call all_variants()
-                    // Parse the inner type name from "Option < EnumType >"
                     let inner_type_start = type_str.find('<').unwrap() + 1;
                     let inner_type_end = type_str.rfind('>').unwrap();
                     let inner_type_str = &type_str[inner_type_start..inner_type_end];

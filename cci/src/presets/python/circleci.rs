@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::platforms::circleci::models::CircleCIConfig;
 use crate::traits::ToCircleCI;
 
-use super::PythonAppPreset;
+use super::PythonApp;
 
-impl ToCircleCI for PythonAppPreset {
+impl ToCircleCI for PythonApp {
     fn to_circleci(&self) -> Result<CircleCIConfig> {
         use crate::platforms::circleci::models::*;
         use std::collections::BTreeMap;

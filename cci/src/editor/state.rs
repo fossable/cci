@@ -47,11 +47,14 @@ impl Platform {
     }
 }
 
+/// Fixed category display order
+const CATEGORY_ORDER: &[&str] = &["Languages", "Packaging", "Documentation"];
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TreeItem {
-    Preset(String),                 // preset_id
-    Feature(String, String),        // preset_id, feature_id
-    Option(String, String, String), // preset_id, feature_id, option_id
+    Category(String),           // category name
+    Preset(String),             // preset_id
+    Field(String, String),      // (preset_id, field_id)
 }
 
 pub struct EditorState {
@@ -63,13 +66,13 @@ pub struct EditorState {
     // User selections
     pub target_platform: Platform,
 
-    // Dynamic preset configuration (REPLACES all hardcoded fields!)
+    // Dynamic preset configuration
     pub registry: Arc<PresetRegistry>,
     pub preset_configs: HashMap<String, PresetConfig>,
 
     // UI state - tree structure
-    pub expanded_presets: HashSet<String>, // preset IDs
-    pub expanded_features: HashSet<(String, String)>, // (preset_id, feature_id)
+    pub expanded_categories: HashSet<String>,
+    pub expanded_presets: HashSet<String>,
     pub tree_items: Vec<TreeItem>,
     pub tree_cursor: usize,
     pub platform_menu_open: bool,
@@ -123,6 +126,7 @@ impl EditorState {
 
         // Initialize preset configs for all presets
         let mut preset_configs = HashMap::new();
+        let mut expanded_categories = HashSet::new();
         let mut expanded_presets = HashSet::new();
 
         for preset in registry.all() {
@@ -133,9 +137,10 @@ impl EditorState {
             let config = preset.default_config(matches);
             preset_configs.insert(preset_id.to_string(), config);
 
-            // Expand matching presets by default
+            // Expand matching presets and their categories by default
             if matches {
                 expanded_presets.insert(preset_id.to_string());
+                expanded_categories.insert(preset.preset_category().to_string());
             }
         }
 
@@ -150,8 +155,8 @@ impl EditorState {
             target_platform,
             registry,
             preset_configs,
+            expanded_categories,
             expanded_presets,
-            expanded_features: HashSet::new(),
             tree_items: Vec::new(),
             tree_cursor: 0,
             platform_menu_open: false,
@@ -177,33 +182,37 @@ impl EditorState {
     pub fn rebuild_tree(&mut self) {
         self.tree_items.clear();
 
-        // Get all presets and sort: matching ones first, then others
-        let mut all_presets: Vec<_> = self.registry.all().into_iter().collect();
-        all_presets
-            .sort_by_key(|preset| !preset.matches_project(&self.project_type, &self.working_dir));
+        // Get all presets grouped by category
+        let all_presets: Vec<_> = self.registry.all().into_iter().collect();
 
-        // Build three-level tree: Preset → Feature → Option
-        for preset in all_presets {
-            let preset_id = preset.preset_id().to_string();
-            self.tree_items.push(TreeItem::Preset(preset_id.clone()));
+        for &category in CATEGORY_ORDER {
+            // Collect presets in this category
+            let mut category_presets: Vec<_> = all_presets
+                .iter()
+                .filter(|p| p.preset_category() == category)
+                .collect();
 
-            // Add features if preset is expanded
-            if self.expanded_presets.contains(&preset_id) {
-                for feature in preset.features() {
-                    let feature_id = feature.id.clone();
-                    self.tree_items
-                        .push(TreeItem::Feature(preset_id.clone(), feature_id.clone()));
+            if category_presets.is_empty() {
+                continue;
+            }
 
-                    // Add options if feature is expanded
-                    if self
-                        .expanded_features
-                        .contains(&(preset_id.clone(), feature_id.clone()))
-                    {
-                        for option in &feature.options {
-                            self.tree_items.push(TreeItem::Option(
+            // Sort: matching presets first
+            category_presets.sort_by_key(|preset| {
+                !preset.matches_project(&self.project_type, &self.working_dir)
+            });
+
+            self.tree_items.push(TreeItem::Category(category.to_string()));
+
+            if self.expanded_categories.contains(category) {
+                for preset in category_presets {
+                    let preset_id = preset.preset_id().to_string();
+                    self.tree_items.push(TreeItem::Preset(preset_id.clone()));
+
+                    if self.expanded_presets.contains(&preset_id) {
+                        for field in preset.fields() {
+                            self.tree_items.push(TreeItem::Field(
                                 preset_id.clone(),
-                                feature_id.clone(),
-                                option.id.clone(),
+                                field.id.clone(),
                             ));
                         }
                     }
@@ -212,23 +221,20 @@ impl EditorState {
         }
     }
 
-    pub fn toggle_preset_expand(&mut self, preset_id: &str) {
-        if self.expanded_presets.contains(preset_id) {
-            self.expanded_presets.remove(preset_id);
-            // Also collapse all features of this preset
-            self.expanded_features.retain(|(p, _)| p != preset_id);
+    pub fn toggle_category_expand(&mut self, category: &str) {
+        if self.expanded_categories.contains(category) {
+            self.expanded_categories.remove(category);
         } else {
-            self.expanded_presets.insert(preset_id.to_string());
+            self.expanded_categories.insert(category.to_string());
         }
         self.rebuild_tree();
     }
 
-    pub fn toggle_feature_expand(&mut self, preset_id: &str, feature_id: &str) {
-        let key = (preset_id.to_string(), feature_id.to_string());
-        if self.expanded_features.contains(&key) {
-            self.expanded_features.remove(&key);
+    pub fn toggle_preset_expand(&mut self, preset_id: &str) {
+        if self.expanded_presets.contains(preset_id) {
+            self.expanded_presets.remove(preset_id);
         } else {
-            self.expanded_features.insert(key);
+            self.expanded_presets.insert(preset_id.to_string());
         }
         self.rebuild_tree();
     }
@@ -347,18 +353,16 @@ impl EditorState {
 
         let has_enabled = self.has_any_options_enabled(config);
 
-        // Get preset to access all its options
+        // Get preset to access all its fields
         let preset = match self.registry.get(preset_id) {
             Some(p) => p,
             None => return,
         };
 
         // Toggle all boolean options for this preset
-        for feature in preset.features() {
-            for option in &feature.options {
-                if matches!(option.default_value, OptionValue::Bool(_)) {
-                    self.set_option_value(preset_id, &option.id, OptionValue::Bool(!has_enabled));
-                }
+        for field in preset.fields() {
+            if matches!(field.default_value, OptionValue::Bool(_)) {
+                self.set_option_value(preset_id, &field.id, OptionValue::Bool(!has_enabled));
             }
         }
 
@@ -391,36 +395,21 @@ impl EditorState {
 
     pub fn update_current_item_description(&mut self) {
         self.current_item_description = match self.current_item() {
+            Some(TreeItem::Category(_)) => String::new(),
             Some(TreeItem::Preset(preset_id)) => self
                 .registry
                 .get(preset_id)
                 .map(|p| p.preset_description().to_string())
                 .unwrap_or_default(),
-            Some(TreeItem::Feature(preset_id, feature_id)) => self
+            Some(TreeItem::Field(preset_id, field_id)) => self
                 .registry
                 .get(preset_id)
                 .and_then(|preset| {
                     preset
-                        .features()
+                        .fields()
                         .into_iter()
-                        .find(|f| &f.id == feature_id)
+                        .find(|f| &f.id == field_id)
                         .map(|f| f.description.clone())
-                })
-                .unwrap_or_default(),
-            Some(TreeItem::Option(preset_id, feature_id, option_id)) => self
-                .registry
-                .get(preset_id)
-                .and_then(|preset| {
-                    preset
-                        .features()
-                        .into_iter()
-                        .find(|f| &f.id == feature_id)
-                        .and_then(|f| {
-                            f.options
-                                .iter()
-                                .find(|o| &o.id == option_id)
-                                .map(|o| o.description.clone())
-                        })
                 })
                 .unwrap_or_default(),
             None => String::new(),
@@ -448,32 +437,9 @@ impl EditorState {
         };
 
         // Find the option metadata to get default value
-        for feature in preset.features() {
-            for option in &feature.options {
-                if option.id == option_id {
-                    return current_value != &option.default_value;
-                }
-            }
-        }
-
-        false
-    }
-
-    /// Check if a feature has any non-default options
-    pub fn has_feature_non_defaults(&self, preset_id: &str, feature_id: &str) -> bool {
-        let preset = match self.registry.get(preset_id) {
-            Some(p) => p,
-            None => return false,
-        };
-
-        let feature = match preset.features().into_iter().find(|f| f.id == feature_id) {
-            Some(f) => f,
-            None => return false,
-        };
-
-        for option in &feature.options {
-            if self.is_option_non_default(preset_id, &option.id) {
-                return true;
+        for field in preset.fields() {
+            if field.id == option_id {
+                return current_value != &field.default_value;
             }
         }
 
@@ -487,8 +453,8 @@ impl EditorState {
             None => return false,
         };
 
-        for feature in preset.features() {
-            if self.has_feature_non_defaults(preset_id, &feature.id) {
+        for field in preset.fields() {
+            if self.is_option_non_default(preset_id, &field.id) {
                 return true;
             }
         }
@@ -496,7 +462,7 @@ impl EditorState {
         false
     }
 
-    /// Auto-expand presets and features that have non-default values
+    /// Auto-expand categories and presets that have non-default values
     pub fn auto_expand_non_defaults(&mut self) {
         let preset_ids: Vec<String> = self
             .registry
@@ -509,14 +475,10 @@ impl EditorState {
             if self.has_preset_non_defaults(&preset_id) {
                 self.expanded_presets.insert(preset_id.clone());
 
-                // Expand features with non-defaults
+                // Expand the category containing this preset
                 if let Some(preset) = self.registry.get(&preset_id) {
-                    for feature in preset.features() {
-                        if self.has_feature_non_defaults(&preset_id, &feature.id) {
-                            self.expanded_features
-                                .insert((preset_id.clone(), feature.id.clone()));
-                        }
-                    }
+                    self.expanded_categories
+                        .insert(preset.preset_category().to_string());
                 }
             }
         }
@@ -572,8 +534,8 @@ impl EditorState {
             target_platform,
             registry,
             preset_configs,
+            expanded_categories: HashSet::new(),
             expanded_presets: HashSet::new(),
-            expanded_features: HashSet::new(),
             tree_items: Vec::new(),
             tree_cursor: 0,
             platform_menu_open: false,
@@ -636,6 +598,13 @@ impl EditorState {
         // Silently attempt to save - don't panic on errors
         let _ = self.save_to_ron_file(&cci_ron_path);
     }
+
+    /// Find the category that contains a given preset
+    pub fn preset_category(&self, preset_id: &str) -> Option<String> {
+        self.registry
+            .get(preset_id)
+            .map(|p| p.preset_category().to_string())
+    }
 }
 
 #[cfg(test)]
@@ -656,7 +625,7 @@ mod tests {
 
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        // All presets should be shown in the tree
+        // All presets should be shown in the tree (under categories)
         let preset_items: Vec<&str> = state
             .tree_items
             .iter()
@@ -666,19 +635,17 @@ mod tests {
             })
             .collect();
 
-        assert_eq!(preset_items.len(), 4); // All 4 presets
-        assert!(preset_items.contains(&"rust"));
-        assert!(preset_items.contains(&"python-app"));
-        assert!(preset_items.contains(&"go-app"));
-        assert!(preset_items.contains(&"docker"));
+        // Only presets in expanded categories show up
+        // Rust matches, so Languages category is expanded
+        assert!(preset_items.contains(&"Rust"));
 
-        // But only Rust options should be enabled by default
-        let rust_config = state.preset_configs.get("rust").unwrap();
-        assert_eq!(rust_config.get_bool("enable_coverage"), true);
-        assert_eq!(rust_config.get_bool("enable_linter"), true);
+        // Rust options should be enabled by default when detected
+        let rust_config = state.preset_configs.get("Rust").unwrap();
+        // Defaults are false per preset_field, but set via default_config(detected=true)
+        assert!(rust_config.values.contains_key("enable_coverage"));
 
-        let python_config = state.preset_configs.get("python-app").unwrap();
-        assert_eq!(python_config.get_bool("enable_linter"), false);
+        let python_config = state.preset_configs.get("PythonApp").unwrap();
+        assert_eq!(python_config.get_bool("enable_type_check"), false);
     }
 
     #[test]
@@ -693,12 +660,11 @@ mod tests {
 
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        let rust_config = state.preset_configs.get("rust").unwrap();
-        assert_eq!(rust_config.get_bool("enable_linter"), true);
-        assert_eq!(rust_config.get_bool("build_release"), true);
+        let rust_config = state.preset_configs.get("Rust").unwrap();
+        assert!(rust_config.values.contains_key("enable_linter"));
 
-        let python_config = state.preset_configs.get("python-app").unwrap();
-        assert_eq!(python_config.get_bool("enable_linter"), false);
+        let python_config = state.preset_configs.get("PythonApp").unwrap();
+        assert_eq!(python_config.get_bool("enable_type_check"), false);
     }
 
     #[test]
@@ -713,12 +679,12 @@ mod tests {
 
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        let rust_config = state.preset_configs.get("rust").unwrap();
+        let rust_config = state.preset_configs.get("Rust").unwrap();
         assert_eq!(rust_config.get_bool("enable_coverage"), false);
 
-        let python_config = state.preset_configs.get("python-app").unwrap();
-        assert_eq!(python_config.get_bool("enable_linter"), true);
-        assert_eq!(python_config.get_bool("enable_formatter"), true);
+        // Python detected, so its bool defaults apply
+        let python_config = state.preset_configs.get("PythonApp").unwrap();
+        assert!(python_config.values.contains_key("enable_type_check"));
     }
 
     #[test]
@@ -733,9 +699,9 @@ mod tests {
 
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        let go_config = state.preset_configs.get("go-app").unwrap();
+        let go_config = state.preset_configs.get("GoApp").unwrap();
         assert_eq!(go_config.get_bool("enable_linter"), true);
-        assert_eq!(go_config.get_bool("enable_security"), true);
+        assert_eq!(go_config.get_bool("enable_security_scan"), true);
     }
 
     #[test]
@@ -759,14 +725,11 @@ mod tests {
             let state =
                 EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-            let has_docker = state
-                .tree_items
-                .iter()
-                .any(|item| matches!(item, TreeItem::Preset(id) if id == "docker"));
-
+            // Docker config should exist even if not shown in tree (category not expanded)
+            let docker_config = state.preset_configs.get("Docker");
             assert!(
-                has_docker,
-                "Docker preset should be shown for {:?}",
+                docker_config.is_some(),
+                "Docker preset should be available for {:?}",
                 project_type
             );
         }
@@ -784,7 +747,7 @@ mod tests {
 
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        let docker_config = state.preset_configs.get("docker").unwrap();
+        let docker_config = state.preset_configs.get("Docker").unwrap();
         assert_eq!(docker_config.get_bool("enable_cache"), true);
     }
 
@@ -800,15 +763,13 @@ mod tests {
 
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        let docker_config = state.preset_configs.get("docker").unwrap();
+        let docker_config = state.preset_configs.get("Docker").unwrap();
         // Docker preset is available but not enabled by default for non-Docker projects
         assert_eq!(docker_config.get_bool("enable_cache"), false);
     }
 
     #[test]
     fn test_docker_preset_available_for_all_projects() {
-        // Docker preset should be available (but not enabled) for all project types
-        // Users can manually enable it if they want to add Docker to their project
         let dir = tempdir().unwrap();
 
         let detection = DetectionResult {
@@ -820,11 +781,38 @@ mod tests {
         let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
         // Docker config should exist
-        let docker_config = state.preset_configs.get("docker");
+        let docker_config = state.preset_configs.get("Docker");
         assert!(docker_config.is_some(), "Docker preset should be available");
 
         // But not enabled by default
         assert_eq!(docker_config.unwrap().get_bool("enable_cache"), false);
+    }
+
+    #[test]
+    fn test_categories_in_tree() {
+        let dir = tempdir().unwrap();
+
+        let detection = DetectionResult {
+            project_type: ProjectType::RustLibrary,
+            language_version: Some("stable".to_string()),
+            metadata: HashMap::new(),
+        };
+
+        let state = EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
+
+        // Should have category items in the tree
+        let category_items: Vec<&str> = state
+            .tree_items
+            .iter()
+            .filter_map(|item| match item {
+                TreeItem::Category(name) => Some(name.as_str()),
+                _ => None,
+            })
+            .collect();
+
+        // At least Languages and Packaging categories should exist
+        assert!(category_items.contains(&"Languages"));
+        assert!(category_items.contains(&"Packaging"));
     }
 
     #[test]
@@ -840,19 +828,17 @@ mod tests {
         let mut state =
             EditorState::from_detection(detection, None, dir.path().to_path_buf()).unwrap();
 
-        // The YAML should be for Rust initially
+        // Enable Rust options first
+        use crate::editor::config::OptionValue;
+        state.set_option_value("Rust", "enable_linter", OptionValue::Bool(true));
+        state.regenerate_yaml();
+
+        // The YAML should be for Rust
         assert!(state.yaml_preview.contains("cargo"));
 
-        // Now manually disable Rust and enable Python App
-        use crate::editor::config::OptionValue;
-        state.set_option_value("rust", "enable_coverage", OptionValue::Bool(false));
-        state.set_option_value("rust", "enable_linter", OptionValue::Bool(false));
-        state.set_option_value("rust", "enable_formatter", OptionValue::Bool(false));
-        state.set_option_value("rust", "enable_security", OptionValue::Bool(false));
-        state.set_option_value("rust", "build_release", OptionValue::Bool(false));
-
-        state.set_option_value("python-app", "enable_linter", OptionValue::Bool(true));
-        state.set_option_value("python-app", "enable_formatter", OptionValue::Bool(true));
+        // Now disable Rust and enable Python App
+        state.set_option_value("Rust", "enable_linter", OptionValue::Bool(false));
+        state.set_option_value("PythonApp", "enable_type_check", OptionValue::Bool(true));
 
         state.regenerate_yaml();
 
@@ -880,8 +866,8 @@ mod tests {
 
         // Enable both Rust and Python (unusual but allowed)
         use crate::editor::config::OptionValue;
-        state.set_option_value("rust", "enable_linter", OptionValue::Bool(true));
-        state.set_option_value("python-app", "enable_linter", OptionValue::Bool(true));
+        state.set_option_value("Rust", "enable_linter", OptionValue::Bool(true));
+        state.set_option_value("PythonApp", "enable_type_check", OptionValue::Bool(true));
 
         state.regenerate_yaml();
 

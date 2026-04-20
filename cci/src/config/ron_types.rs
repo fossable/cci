@@ -19,24 +19,24 @@ pub enum PresetChoice {
 impl PresetChoice {
     /// Convert a PresetChoice to a PresetConfig using the generated conversion methods
     pub fn to_preset_config(&self) -> (String, crate::editor::config::PresetConfig) {
-        use crate::presets::{DockerPreset, GoAppPreset, PythonAppPreset, RustPreset};
+        use crate::presets::{Docker, GoApp, PythonApp, Rust};
 
         match self {
             PresetChoice::Rust(config) => (
-                "rust".to_string(),
-                RustPreset::ron_to_preset_config(config.clone()),
+                "Rust".to_string(),
+                Rust::ron_to_preset_config(config.clone()),
             ),
             PresetChoice::PythonApp(config) => (
-                "python-app".to_string(),
-                PythonAppPreset::ron_to_preset_config(config.clone()),
+                "PythonApp".to_string(),
+                PythonApp::ron_to_preset_config(config.clone()),
             ),
             PresetChoice::GoApp(config) => (
-                "go-app".to_string(),
-                GoAppPreset::ron_to_preset_config(config.clone()),
+                "GoApp".to_string(),
+                GoApp::ron_to_preset_config(config.clone()),
             ),
             PresetChoice::Docker(config) => (
-                "docker".to_string(),
-                DockerPreset::ron_to_preset_config(config.clone()),
+                "Docker".to_string(),
+                Docker::ron_to_preset_config(config.clone()),
             ),
         }
     }
@@ -54,13 +54,13 @@ pub fn preset_config_to_choice(
     preset_id: &str,
     config: &crate::editor::config::PresetConfig,
 ) -> PresetChoice {
-    use crate::presets::{DockerPreset, GoAppPreset, PythonAppPreset, RustPreset};
+    use crate::presets::{Docker, GoApp, PythonApp, Rust};
 
     match preset_id {
-        "rust" => PresetChoice::Rust(RustPreset::preset_config_to_ron(config)),
-        "python-app" => PresetChoice::PythonApp(PythonAppPreset::preset_config_to_ron(config)),
-        "go-app" => PresetChoice::GoApp(GoAppPreset::preset_config_to_ron(config)),
-        "docker" => PresetChoice::Docker(DockerPreset::preset_config_to_ron(config)),
+        "Rust" => PresetChoice::Rust(Rust::preset_config_to_ron(config)),
+        "PythonApp" => PresetChoice::PythonApp(PythonApp::preset_config_to_ron(config)),
+        "GoApp" => PresetChoice::GoApp(GoApp::preset_config_to_ron(config)),
+        "Docker" => PresetChoice::Docker(Docker::preset_config_to_ron(config)),
         _ => panic!("Unknown preset ID: {}", preset_id),
     }
 }

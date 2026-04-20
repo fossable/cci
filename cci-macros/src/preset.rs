@@ -7,31 +7,48 @@ use crate::codegen::{generate_conversions, generate_editor_preset_impl, generate
 
 /// Struct-level attributes for #[preset(...)]
 #[derive(Debug, FromDeriveInput)]
-#[darling(attributes(preset), supports(struct_named))]
+#[darling(attributes(preset), forward_attrs(doc), supports(struct_named))]
 pub struct PresetOpts {
     pub ident: syn::Ident,
     pub data: darling::ast::Data<(), PresetFieldOpts>,
+    pub attrs: Vec<syn::Attribute>,
 
-    /// Preset ID (e.g., "rust", "python-app")
-    pub id: String,
+    /// Preset category (e.g., "Languages", "Packaging", "Documentation")
+    pub category: String,
+}
 
-    /// Display name (e.g., "Rust", "Python App")
-    pub name: String,
+impl PresetOpts {
+    /// Extract the doc comment from struct attributes
+    pub fn doc_comment(&self) -> String {
+        extract_doc_comment(&self.attrs)
+    }
 
-    /// User-facing description
-    pub description: String,
+    /// Derive a display name from the struct ident by splitting CamelCase
+    /// e.g., `Rust` → `"Rust"`, `PythonApp` → `"Python App"`
+    pub fn display_name(&self) -> String {
+        camel_case_to_display(&self.ident.to_string())
+    }
 
-    /// ProjectType pattern for matches_project() (e.g., "RustBinary | RustLibrary")
-    #[darling(default)]
-    pub matches: Option<String>,
+    /// Derive the preset ID from the struct ident (lowercase of struct name)
+    /// e.g., `Rust` → `"Rust"`, `PythonApp` → `"PythonApp"`
+    pub fn preset_id(&self) -> String {
+        self.ident.to_string()
+    }
+
+    /// Derive the match prefix (first CamelCase word) for project type detection
+    /// e.g., `Rust` → `"Rust"`, `PythonApp` → `"Python"`, `Docker` → `"Docker"`
+    pub fn match_prefix(&self) -> String {
+        first_camel_word(&self.ident.to_string())
+    }
 }
 
 /// Field-level attributes for #[preset_field(...)]
 #[derive(Debug, Clone, FromField)]
-#[darling(attributes(preset_field))]
+#[darling(attributes(preset_field), forward_attrs(doc))]
 pub struct PresetFieldOpts {
     pub ident: Option<syn::Ident>,
     pub ty: syn::Type,
+    pub attrs: Vec<syn::Attribute>,
 
     /// Default value expression
     #[darling(default)]
@@ -44,18 +61,59 @@ pub struct PresetFieldOpts {
     /// Display name in TUI
     #[darling(default)]
     pub display: Option<String>,
+}
 
-    /// User-facing description
-    #[darling(default)]
-    pub description: Option<String>,
+impl PresetFieldOpts {
+    /// Extract the doc comment from field attributes
+    pub fn doc_comment(&self) -> String {
+        extract_doc_comment(&self.attrs)
+    }
+}
 
-    /// Feature group ID
-    #[darling(default)]
-    pub feature: Option<String>,
+/// Extract doc comment text from `#[doc = "..."]` attributes
+fn extract_doc_comment(attrs: &[syn::Attribute]) -> String {
+    attrs
+        .iter()
+        .filter_map(|attr| {
+            if attr.path().is_ident("doc") {
+                if let syn::Meta::NameValue(nv) = &attr.meta {
+                    if let syn::Expr::Lit(lit) = &nv.value {
+                        if let syn::Lit::Str(s) = &lit.lit {
+                            return Some(s.value().trim().to_string());
+                        }
+                    }
+                }
+            }
+            None
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
 
-    /// Feature group display name
-    #[darling(default)]
-    pub feature_display: Option<String>,
+/// Split a CamelCase identifier into space-separated words
+/// e.g., `"PythonApp"` → `"Python App"`, `"Rust"` → `"Rust"`
+fn camel_case_to_display(s: &str) -> String {
+    let mut result = String::new();
+    for (i, ch) in s.char_indices() {
+        if i > 0 && ch.is_uppercase() {
+            result.push(' ');
+        }
+        result.push(ch);
+    }
+    result
+}
+
+/// Extract the first CamelCase word from an identifier
+/// e.g., `"PythonApp"` → `"Python"`, `"Rust"` → `"Rust"`, `"GoApp"` → `"Go"`
+fn first_camel_word(s: &str) -> String {
+    let mut end = s.len();
+    for (i, ch) in s.char_indices() {
+        if i > 0 && ch.is_uppercase() {
+            end = i;
+            break;
+        }
+    }
+    s[..end].to_string()
 }
 
 pub fn derive_preset_impl(input: TokenStream) -> TokenStream {
@@ -69,12 +127,13 @@ pub fn derive_preset_impl(input: TokenStream) -> TokenStream {
     // Extract fields before consuming opts
     let fields: Vec<_> = opts.data.clone().take_struct().unwrap().fields;
     let preset_ident = &opts.ident;
+    let preset_id = opts.preset_id();
 
     // Generate the RON config struct
-    let ron_type = generate_ron_type(&opts.ident, &opts.id, &fields);
+    let ron_type = generate_ron_type(&opts.ident, &fields);
 
     // Generate conversion methods
-    let conversions = generate_conversions(&opts.ident, &opts.id, &fields);
+    let conversions = generate_conversions(&opts.ident, &preset_id, &fields);
 
     // Generate EditorPreset trait implementation
     let editor_preset = generate_editor_preset_impl(&opts, &fields);

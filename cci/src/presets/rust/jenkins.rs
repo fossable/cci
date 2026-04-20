@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::ToJenkins;
 
-use super::RustPreset;
+use super::Rust;
 
-impl ToJenkins for RustPreset {
+impl ToJenkins for Rust {
     fn to_jenkins(&self) -> Result<JenkinsConfig> {
         use crate::platforms::jenkins::models::JenkinsStage;
 

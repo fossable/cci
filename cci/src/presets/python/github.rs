@@ -5,9 +5,9 @@ use crate::platforms::github::models::{
 use crate::traits::ToGitHub;
 use std::collections::BTreeMap;
 
-use super::PythonAppPreset;
+use super::PythonApp;
 
-impl ToGitHub for PythonAppPreset {
+impl ToGitHub for PythonApp {
     fn to_github(&self) -> Result<GitHubWorkflow> {
         let mut jobs = BTreeMap::new();
 

@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::ToJenkins;
 
-use super::PythonAppPreset;
+use super::PythonApp;
 
-impl ToJenkins for PythonAppPreset {
+impl ToJenkins for PythonApp {
     fn to_jenkins(&self) -> Result<JenkinsConfig> {
         use crate::platforms::jenkins::models::*;
 

@@ -76,47 +76,27 @@ impl PythonFormatter {
     }
 }
 
-/// Preset for Python application projects
+/// CI pipeline for Python applications with pytest, linting, and type checking
 #[derive(Debug, Clone, Preset)]
-#[preset(
-    id = "python-app",
-    name = "Python",
-    description = "CI pipeline for Python applications with pytest, linting, and type checking",
-    matches = "PythonApp | PythonLibrary"
-)]
-pub struct PythonAppPreset {
+#[preset(category = "Languages")]
+pub struct PythonApp {
     #[preset_field(default = "\"3.11\".to_string()", hidden = true)]
     pub(super) python_version: String,
 
-    #[preset_field(
-        feature = "linting",
-        feature_display = "Linting",
-        display = "Linter",
-        description = "Choose linter tool (None, Flake8, or Ruff)",
-        default = "None"
-    )]
+    /// Choose linter tool (None, Flake8, or Ruff)
+    #[preset_field(display = "Linter", default = "None")]
     pub(super) linter: Option<PythonLinter>,
 
-    #[preset_field(
-        feature = "testing",
-        feature_display = "Testing",
-        display = "Type Checking",
-        description = "Enable mypy static type checking",
-        default = "false"
-    )]
+    /// Enable mypy static type checking
+    #[preset_field(display = "Type Checking", default = "false")]
     pub(super) enable_type_check: bool,
 
-    #[preset_field(
-        feature = "formatting",
-        feature_display = "Formatting",
-        display = "Formatter",
-        description = "Choose formatter tool (None, Black, or Ruff)",
-        default = "None"
-    )]
+    /// Choose formatter tool (None, Black, or Ruff)
+    #[preset_field(display = "Formatter", default = "None")]
     pub(super) formatter: Option<PythonFormatter>,
 }
 
-impl PythonAppPreset {
+impl PythonApp {
     /// Constant default instance for registry initialization
     pub const DEFAULT: Self = Self {
         python_version: String::new(),
@@ -126,9 +106,9 @@ impl PythonAppPreset {
     };
 }
 
-impl PresetInfo for PythonAppPreset {
+impl PresetInfo for PythonApp {
     fn name(&self) -> &str {
-        "python-app"
+        "PythonApp"
     }
 
     fn description(&self) -> &str {

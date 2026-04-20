@@ -99,6 +99,31 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
         let is_selected = i == state.tree_cursor;
 
         let list_item = match item {
+            TreeItem::Category(category) => {
+                let is_expanded = state.expanded_categories.contains(category);
+                let expand_icon = if is_expanded { "▼" } else { "▶" };
+
+                let text_color = if is_selected {
+                    Color::Yellow
+                } else {
+                    Color::White
+                };
+
+                let line = Line::from(vec![Span::styled(
+                    format!("{} {}", expand_icon, category),
+                    Style::default()
+                        .fg(text_color)
+                        .add_modifier(Modifier::BOLD),
+                )]);
+
+                let item_style = if is_selected {
+                    Style::default().add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                };
+
+                ListItem::new(line).style(item_style)
+            }
             TreeItem::Preset(preset_id) => {
                 let preset = match state.registry.get(preset_id) {
                     Some(p) => p,
@@ -140,7 +165,10 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
                 };
 
                 let line = Line::from(vec![
-                    Span::styled(format!("{} ", expand_icon), Style::default().fg(text_color)),
+                    Span::styled(
+                        format!("  {} ", expand_icon),
+                        Style::default().fg(text_color),
+                    ),
                     Span::styled(circle_icon, Style::default().fg(circle_color)),
                     Span::styled(
                         format!(" {}", preset.preset_name()),
@@ -156,45 +184,7 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
 
                 ListItem::new(line).style(item_style)
             }
-            TreeItem::Feature(preset_id, feature_id) => {
-                let preset = match state.registry.get(preset_id) {
-                    Some(p) => p,
-                    None => continue,
-                };
-
-                let feature = match preset.features().into_iter().find(|f| &f.id == feature_id) {
-                    Some(f) => f,
-                    None => continue,
-                };
-
-                let is_expanded = state
-                    .expanded_features
-                    .contains(&(preset_id.clone(), feature_id.clone()));
-                let expand_icon = if is_expanded { "▼" } else { "▶" };
-                let has_non_defaults = state.has_feature_non_defaults(preset_id, feature_id);
-
-                let text_color = if is_selected {
-                    Color::Yellow
-                } else if !has_non_defaults {
-                    Color::DarkGray
-                } else {
-                    Color::White
-                };
-
-                let line = Line::from(vec![Span::styled(
-                    format!("  {} {}", expand_icon, feature.display_name),
-                    Style::default().fg(text_color),
-                )]);
-
-                let item_style = if is_selected {
-                    Style::default().add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default()
-                };
-
-                ListItem::new(line).style(item_style)
-            }
-            TreeItem::Option(preset_id, _feature_id, option_id) => {
+            TreeItem::Field(preset_id, field_id) => {
                 let preset = match state.registry.get(preset_id) {
                     Some(p) => p,
                     None => continue,
@@ -205,22 +195,19 @@ fn render_presets_panel(f: &mut Frame, area: Rect, state: &EditorState) {
                     None => continue,
                 };
 
-                let value = match config.get(option_id) {
+                let value = match config.get(field_id) {
                     Some(v) => v,
                     None => continue,
                 };
 
-                // Find the option metadata to get the display name
-                let features = preset.features();
-                let option_meta = features
-                    .iter()
-                    .flat_map(|f| &f.options)
-                    .find(|o| &o.id == option_id);
+                // Find the field metadata to get the display name
+                let fields = preset.fields();
+                let field_meta = fields.iter().find(|f| &f.id == field_id);
 
-                let display_name = option_meta
-                    .map(|o| o.display_name.as_str())
-                    .unwrap_or(option_id);
-                let is_non_default = state.is_option_non_default(preset_id, option_id);
+                let display_name = field_meta
+                    .map(|f| f.display_name.as_str())
+                    .unwrap_or(field_id);
+                let is_non_default = state.is_option_non_default(preset_id, field_id);
 
                 let display_text = match value {
                     OptionValue::Bool(b) => {

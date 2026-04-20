@@ -8,80 +8,37 @@ mod github;
 mod gitlab;
 mod jenkins;
 
-/// Unified preset for Rust projects (binaries, libraries, and workspaces)
+/// CI pipeline for Rust projects (binaries, libraries, and workspaces)
 #[derive(Debug, Clone, Preset)]
-#[preset(
-    id = "rust",
-    name = "Rust",
-    description = "CI pipeline for Rust projects (binaries, libraries, and workspaces)",
-    matches = "RustBinary | RustLibrary | RustWorkspace"
-)]
-pub struct RustPreset {
+#[preset(category = "Languages")]
+pub struct Rust {
     #[preset_field(default = "\"stable\".to_string()", hidden = true)]
     pub(super) rust_version: String,
 
-    #[preset_field(
-        feature = "testing",
-        feature_display = "Testing",
-        display = "Code Coverage",
-        description = "Enable code coverage reporting with tarpaulin",
-        default = "false"
-    )]
+    /// Enable code coverage reporting with tarpaulin
+    #[preset_field(display = "Code Coverage", default = "false")]
     pub(super) enable_coverage: bool,
 
-    #[preset_field(
-        feature = "linting",
-        feature_display = "Linting",
-        display = "Clippy Linter",
-        description = "Run Clippy linter for code quality",
-        default = "false"
-    )]
+    /// Run Clippy linter for code quality
+    #[preset_field(display = "Clippy Linter", default = "false")]
     pub(super) enable_linter: bool,
 
-    #[preset_field(
-        feature = "security",
-        feature_display = "Security",
-        display = "Security Scan",
-        description = "Run cargo-audit for dependency vulnerabilities",
-        default = "false"
-    )]
+    /// Run cargo-audit for dependency vulnerabilities
+    #[preset_field(display = "Security Scan", default = "false")]
     pub(super) enable_security_scan: bool,
 
-    #[preset_field(
-        feature = "formatting",
-        feature_display = "Formatting",
-        display = "Rustfmt Check",
-        description = "Check code formatting with rustfmt",
-        default = "false"
-    )]
+    /// Check code formatting with rustfmt
+    #[preset_field(display = "Rustfmt Check", default = "false")]
     pub(super) enable_format_check: bool,
 
-    #[preset_field(
-        feature = "building",
-        feature_display = "Building",
-        display = "Build Release",
-        description = "Build optimized release binary in CI",
-        default = "false"
-    )]
+    /// Build optimized release binary in CI
+    #[preset_field(display = "Build Release", default = "false")]
     pub(super) build_release: bool,
 }
 
-impl Default for RustPreset {
-    fn default() -> Self {
-        Self {
-            rust_version: "stable".to_string(),
-            enable_coverage: false,
-            enable_linter: false,
-            enable_security_scan: false,
-            enable_format_check: false,
-            build_release: false,
-        }
-    }
-}
-
-impl PresetInfo for RustPreset {
+impl PresetInfo for Rust {
     fn name(&self) -> &str {
-        "rust"
+        "Rust"
     }
 
     fn description(&self) -> &str {
@@ -96,19 +53,18 @@ mod tests {
 
     #[test]
     fn test_default() {
-        let preset = RustPreset::default();
+        let preset = Rust::default();
         assert_eq!(preset.rust_version, "stable");
-        // Defaults changed - all features are now enabled by default
-        assert!(preset.enable_coverage);
-        assert!(preset.enable_linter);
-        assert!(preset.enable_security_scan);
-        assert!(preset.enable_format_check);
-        assert!(preset.build_release);
+        assert!(!preset.enable_coverage);
+        assert!(!preset.enable_linter);
+        assert!(!preset.enable_security_scan);
+        assert!(!preset.enable_format_check);
+        assert!(!preset.build_release);
     }
 
     #[test]
     fn test_with_options() {
-        let preset = RustPreset {
+        let preset = Rust {
             rust_version: "1.75.0".to_string(),
             enable_coverage: true,
             enable_linter: true,
@@ -125,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_to_github_basic() {
-        let preset = RustPreset {
+        let preset = Rust {
             rust_version: "stable".to_string(),
             enable_coverage: false,
             enable_linter: false,
@@ -142,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_to_github_with_lint() {
-        let preset = RustPreset {
+        let preset = Rust {
             rust_version: "stable".to_string(),
             enable_coverage: false,
             enable_linter: true,
@@ -158,8 +114,8 @@ mod tests {
 
     #[test]
     fn test_preset_info() {
-        let preset = RustPreset::default();
-        assert_eq!(preset.name(), "rust");
+        let preset = Rust::default();
+        assert_eq!(preset.name(), "Rust");
         assert!(!preset.description().is_empty());
     }
 }

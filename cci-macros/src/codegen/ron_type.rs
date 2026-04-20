@@ -4,17 +4,10 @@ use quote::{format_ident, quote};
 
 pub fn generate_ron_type(
     preset_ident: &syn::Ident,
-    _preset_id: &str,
     fields: &[PresetFieldOpts],
 ) -> TokenStream {
-    // Generate RON config struct name (e.g., RustPreset -> RustConfig)
-    let config_name = format_ident!(
-        "{}Config",
-        preset_ident
-            .to_string()
-            .strip_suffix("Preset")
-            .unwrap_or(&preset_ident.to_string())
-    );
+    // Generate RON config struct name (e.g., Rust -> RustConfig)
+    let config_name = format_ident!("{}Config", preset_ident);
 
     // Generate fields for the RON struct
     let ron_fields = fields.iter().map(|field| {

@@ -3,9 +3,9 @@ use crate::platforms::circleci::models::CircleCIConfig;
 use crate::traits::ToCircleCI;
 use std::collections::BTreeMap;
 
-use super::{DockerPreset, DockerRegistry};
+use super::{Docker, DockerRegistry};
 
-impl ToCircleCI for DockerPreset {
+impl ToCircleCI for Docker {
     fn to_circleci(&self) -> Result<CircleCIConfig> {
         use crate::platforms::circleci::models::*;
 

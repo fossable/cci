@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::traits::ToGitLab;
 
-use super::PythonAppPreset;
+use super::PythonApp;
 
-impl ToGitLab for PythonAppPreset {
+impl ToGitLab for PythonApp {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::*;
         use std::collections::BTreeMap;

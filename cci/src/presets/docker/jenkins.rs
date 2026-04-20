@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::ToJenkins;
 
-use super::{DockerPreset, DockerRegistry};
+use super::{Docker, DockerRegistry};
 
-impl ToJenkins for DockerPreset {
+impl ToJenkins for Docker {
     fn to_jenkins(&self) -> Result<JenkinsConfig> {
         use crate::platforms::jenkins::models::*;
 

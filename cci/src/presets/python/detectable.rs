@@ -4,9 +4,9 @@ use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::Detectable;
 
-use super::PythonAppPreset;
+use super::PythonApp;
 
-impl Detectable for PythonAppPreset {
+impl Detectable for PythonApp {
     fn matches_github(&self, workflow: &GitHubWorkflow) -> bool {
         let has_python_setup = workflow.jobs.values().any(|job| {
             job.steps.iter().any(|step| {

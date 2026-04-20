@@ -5,9 +5,9 @@ use crate::platforms::github::models::{
 use crate::traits::ToGitHub;
 use std::collections::BTreeMap;
 
-use super::RustPreset;
+use super::Rust;
 
-impl ToGitHub for RustPreset {
+impl ToGitHub for Rust {
     fn to_github(&self) -> Result<GitHubWorkflow> {
         let mut jobs = BTreeMap::new();
 

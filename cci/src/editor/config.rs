@@ -35,7 +35,7 @@ impl OptionValue {
     }
 }
 
-/// Metadata for a single option within a feature
+/// Metadata for a single option within a preset
 #[derive(Debug, Clone)]
 pub struct OptionMeta {
     pub id: String,
@@ -43,15 +43,6 @@ pub struct OptionMeta {
     pub description: String,
     pub default_value: OptionValue,
     pub depends_on: Option<String>, // ID of parent option this depends on
-}
-
-/// A feature groups related options
-#[derive(Debug, Clone)]
-pub struct FeatureMeta {
-    pub id: String,
-    pub display_name: String,
-    pub description: String,
-    pub options: Vec<OptionMeta>,
 }
 
 /// Runtime configuration state for a preset
@@ -137,8 +128,11 @@ pub trait EditorPreset: Send + Sync {
     /// Description shown in UI
     fn preset_description(&self) -> &'static str;
 
-    /// Define the feature hierarchy for this preset
-    fn features(&self) -> Vec<FeatureMeta>;
+    /// Category for grouping in the TUI (e.g., "Languages", "Packaging")
+    fn preset_category(&self) -> &'static str;
+
+    /// Define the fields for this preset
+    fn fields(&self) -> Vec<OptionMeta>;
 
     /// Build the preset with given configuration and generate output
     fn generate(

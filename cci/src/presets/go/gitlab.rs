@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::platforms::gitlab::models::GitLabCI;
 use crate::traits::ToGitLab;
 
-use super::GoAppPreset;
+use super::GoApp;
 
-impl ToGitLab for GoAppPreset {
+impl ToGitLab for GoApp {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::*;
         use std::collections::BTreeMap;

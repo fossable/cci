@@ -4,9 +4,9 @@ use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::Detectable;
 
-use super::RustPreset;
+use super::Rust;
 
-impl Detectable for RustPreset {
+impl Detectable for Rust {
     fn matches_github(&self, workflow: &GitHubWorkflow) -> bool {
         // Check for Rust toolchain setup
         let has_rust_toolchain = workflow.jobs.values().any(|job| {

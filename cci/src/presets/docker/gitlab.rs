@@ -3,9 +3,9 @@ use crate::platforms::gitlab::models::GitLabCI;
 use crate::traits::ToGitLab;
 use std::collections::BTreeMap;
 
-use super::{DockerPreset, DockerRegistry};
+use super::{Docker, DockerRegistry};
 
-impl ToGitLab for DockerPreset {
+impl ToGitLab for Docker {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::*;
 

@@ -3,7 +3,7 @@ pub mod go;
 pub mod python;
 pub mod rust;
 
-pub use docker::{DockerConfig, DockerPreset, DockerRegistry};
-pub use go::{GoAppConfig, GoAppPreset};
-pub use python::{PythonAppConfig, PythonAppPreset, PythonFormatter, PythonLinter};
-pub use rust::{RustConfig, RustPreset};
+pub use docker::{Docker, DockerConfig, DockerRegistry};
+pub use go::{GoApp, GoAppConfig};
+pub use python::{PythonApp, PythonAppConfig, PythonFormatter, PythonLinter};
+pub use rust::{Rust, RustConfig};

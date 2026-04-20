@@ -4,9 +4,9 @@ use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::Detectable;
 
-use super::GoAppPreset;
+use super::GoApp;
 
-impl Detectable for GoAppPreset {
+impl Detectable for GoApp {
     fn matches_github(&self, workflow: &GitHubWorkflow) -> bool {
         let has_go_setup = workflow.jobs.values().any(|job| {
             job.steps.iter().any(|step| {

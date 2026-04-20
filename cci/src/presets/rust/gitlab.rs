@@ -3,9 +3,9 @@ use crate::platforms::gitlab::models::GitLabCI;
 use crate::traits::ToGitLab;
 use std::collections::BTreeMap;
 
-use super::RustPreset;
+use super::Rust;
 
-impl ToGitLab for RustPreset {
+impl ToGitLab for Rust {
     fn to_gitlab(&self) -> Result<GitLabCI> {
         use crate::platforms::gitlab::models::{
             GitLabArtifacts, GitLabCache, GitLabJob, GitLabOnly,

@@ -4,9 +4,9 @@ use crate::platforms::gitlab::models::GitLabCI;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::Detectable;
 
-use super::DockerPreset;
+use super::Docker;
 
-impl Detectable for DockerPreset {
+impl Detectable for Docker {
     fn matches_github(&self, workflow: &GitHubWorkflow) -> bool {
         // Check for Docker build actions
         let has_docker_build = workflow.jobs.values().any(|job| {

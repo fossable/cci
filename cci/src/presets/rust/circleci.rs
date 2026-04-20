@@ -3,9 +3,9 @@ use crate::platforms::circleci::models::CircleCIConfig;
 use crate::traits::ToCircleCI;
 use std::collections::BTreeMap;
 
-use super::RustPreset;
+use super::Rust;
 
-impl ToCircleCI for RustPreset {
+impl ToCircleCI for Rust {
     fn to_circleci(&self) -> Result<CircleCIConfig> {
         use crate::platforms::circleci::models::*;
 

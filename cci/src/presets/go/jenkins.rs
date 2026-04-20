@@ -2,9 +2,9 @@ use crate::error::Result;
 use crate::platforms::jenkins::models::JenkinsConfig;
 use crate::traits::ToJenkins;
 
-use super::GoAppPreset;
+use super::GoApp;
 
-impl ToJenkins for GoAppPreset {
+impl ToJenkins for GoApp {
     fn to_jenkins(&self) -> Result<JenkinsConfig> {
         use crate::platforms::jenkins::models::*;
 
