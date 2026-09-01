@@ -54,7 +54,10 @@ impl EditorApp {
     fn event_loop<B: ratatui::backend::Backend>(
         &mut self,
         terminal: &mut Terminal<B>,
-    ) -> Result<()> {
+    ) -> Result<()>
+    where
+        B::Error: Send + Sync + 'static,
+    {
         loop {
             // Render
             terminal.draw(|f| render_ui(f, &self.state))?;
